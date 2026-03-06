@@ -5,6 +5,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
+import org.bukkit.block.Biome;
 import org.bukkit.configuration.ConfigurationSection;
 import ru.truhot.rdang.config.ConfigManager;
 import java.util.Random;
@@ -23,38 +24,44 @@ public class SpawnManager {
         maxZ = section.getInt("maxz", 2000);
     }
 
-    public Location getRandomSafeLocation(World world, Random random) {
-        if (configManager == null) {
-            System.out.println("[Rdang] ERROR: SpawnManager not initialized!");
-            return null;
-        }
-        for (int i = 0; i < 50; i++) {
+    public Location findSuitableDungLocation(World world, Random random) {
+        for (int attempt = 0; attempt < 100; attempt++) {
             int x = random.nextInt(maxX - minX + 1) + minX;
             int z = random.nextInt(maxZ - minZ + 1) + minZ;
             int y = getSuitableHeight(world, x, z, random);
             if (y == Integer.MIN_VALUE) continue;
             Location loc = new Location(world, x, y, z);
-            if (isLocationSafe(loc)) return loc;
+            if (isLocationSafe(loc) && hasSuitableBiome(loc)) {
+                return loc;
+            }
         }
         return null;
     }
 
     public int getSuitableHeight(World world, int x, int z, Random random) {
-        if (configManager == null || configManager.getWorldHeightManager() == null) return world.getHighestBlockYAt(x, z);
+        if (configManager == null || configManager.getWorldHeightManager() == null)
+            return world.getHighestBlockYAt(x, z);
         WorldHeightManager.WorldHeightConfig hConfig = configManager.getWorldHeightManager().getHeightConfigForWorld(world);
-
         if (!hConfig.isUseDefaultAlgorithm()) {
             int minY = Math.max(hConfig.getMinY(), world.getMinHeight());
             int maxY = Math.min(hConfig.getMaxY(), world.getMaxHeight());
             return minY >= maxY ? minY : random.nextInt(maxY - minY + 1) + minY;
         }
-
         Environment env = world.getEnvironment();
         if (env == Environment.NETHER) return getNetherHeight(world, x, z, hConfig);
         if (env == Environment.THE_END) return getEndHeight(world, x, z, hConfig);
+        return getSurfaceHeight(world, x, z, hConfig);
+    }
 
-        int y = world.getHighestBlockYAt(x, z);
-        return isSolidGround(world.getBlockAt(x, y - 1, z).getType()) ? y : Integer.MIN_VALUE;
+    private int getSurfaceHeight(World world, int x, int z, WorldHeightManager.WorldHeightConfig config) {
+        int minY = Math.max(config.getMinY(), world.getMinHeight());
+        int maxY = Math.min(config.getMaxY(), world.getMaxHeight());
+        for (int y = maxY; y >= minY; y--) {
+            if (isSolidGround(world.getBlockAt(x, y - 1, z).getType()) && isAirOrReplaceable(world.getBlockAt(x, y, z).getType())) {
+                return y;
+            }
+        }
+        return Integer.MIN_VALUE;
     }
 
     private int getNetherHeight(World world, int x, int z, WorldHeightManager.WorldHeightConfig config) {
@@ -76,11 +83,25 @@ public class SpawnManager {
         return (minY + maxY) / 2;
     }
 
+    private boolean hasSuitableBiome(Location location) {
+        if (configManager == null || configManager.getDangManager() == null) return true;
+        var dangs = configManager.getDangManager().getDangs();
+        if (dangs.isEmpty()) return true;
+        Biome locationBiome = location.getWorld().getBiome(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+        for (var dangData : dangs) {
+            if (!dangData.getWorld().equalsIgnoreCase(location.getWorld().getName())) continue;
+            for (Biome allowedBiome : dangData.getBiome()) {
+                if (allowedBiome == locationBiome) return true;
+            }
+        }
+        return false;
+    }
+
     private boolean isSolidGround(Material m) {
         if (m.isAir() || m == Material.WATER || m == Material.LAVA || m == Material.CAVE_AIR) return false;
         String n = m.name();
         if (n.endsWith("_LEAVES") || n.contains("LOG") || n.contains("WOOD") || n.contains("FUNGUS") || n.contains("MUSHROOM") || n.contains("GRASS") || n.contains("VINE") || n.contains("CORAL")) return false;
-        return m.isSolid() && m.isBlock() && !m.isTransparent();
+        return m.isSolid() && m.isBlock();
     }
 
     private boolean isAirOrReplaceable(Material m) {
@@ -101,17 +122,5 @@ public class SpawnManager {
             }
         }
         return isAirOrReplaceable(loc.getBlock().getType());
-    }
-
-    public boolean isWithinBounds(int x, int z) { return x >= minX && x <= maxX && z >= minZ && z <= maxZ; }
-
-    public Location getCenter(World world) {
-        int cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
-        return new Location(world, cx, world.getHighestBlockYAt(cx, cz), cz);
-    }
-
-    public Location getRandomPoint(World world, Random random) {
-        int x = random.nextInt(maxX - minX + 1) + minX, z = random.nextInt(maxZ - minZ + 1) + minZ;
-        return new Location(world, x, world.getHighestBlockYAt(x, z), z);
     }
 }

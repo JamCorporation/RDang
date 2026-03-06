@@ -3,14 +3,11 @@ package ru.truhot.rdang.сore.managers;
 import lombok.Getter;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.plugin.java.JavaPlugin;
-
 import java.util.HashMap;
 import java.util.Map;
 
 @Getter
 public class WorldHeightManager {
-
     private final Map<String, WorldHeightConfig> worldHeights = new HashMap<>();
     private WorldHeightConfig defaultNormal;
     private WorldHeightConfig defaultNether;
@@ -22,24 +19,9 @@ public class WorldHeightManager {
             loadDefaults();
             return;
         }
-        ConfigurationSection normalSection = section.getConfigurationSection("normal");
-        if (normalSection != null) {
-            defaultNormal = loadWorldHeightConfig(normalSection);
-        } else {
-            defaultNormal = new WorldHeightConfig("normal", 60, 256);
-        }
-        ConfigurationSection netherSection = section.getConfigurationSection("nether");
-        if (netherSection != null) {
-            defaultNether = loadWorldHeightConfig(netherSection);
-        } else {
-            defaultNether = new WorldHeightConfig("nether", 32, 100);
-        }
-        ConfigurationSection endSection = section.getConfigurationSection("end");
-        if (endSection != null) {
-            defaultEnd = loadWorldHeightConfig(endSection);
-        } else {
-            defaultEnd = new WorldHeightConfig("the_end", 40, 80);
-        }
+        defaultNormal = loadConfigOrDefault(section.getConfigurationSection("normal"), "normal");
+        defaultNether = loadConfigOrDefault(section.getConfigurationSection("nether"), "nether");
+        defaultEnd = loadConfigOrDefault(section.getConfigurationSection("end"), "the_end");
         ConfigurationSection customWorldsSection = section.getConfigurationSection("custom-worlds");
         if (customWorldsSection != null) {
             for (String worldName : customWorldsSection.getKeys(false)) {
@@ -54,9 +36,14 @@ public class WorldHeightManager {
     }
 
     private void loadDefaults() {
-        defaultNormal = new WorldHeightConfig("normal", 60, 256);
-        defaultNether = new WorldHeightConfig("nether", 32, 100);
-        defaultEnd = new WorldHeightConfig("the_end", 40, 80);
+        defaultNormal = new WorldHeightConfig("normal", getDefaultMinForType("normal"), getDefaultMaxForType("normal"));
+        defaultNether = new WorldHeightConfig("nether", getDefaultMinForType("nether"), getDefaultMaxForType("nether"));
+        defaultEnd = new WorldHeightConfig("the_end", getDefaultMinForType("the_end"), getDefaultMaxForType("the_end"));
+    }
+
+    private WorldHeightConfig loadConfigOrDefault(ConfigurationSection section, String type) {
+        if (section != null) return loadWorldHeightConfig(section);
+        return new WorldHeightConfig(type, getDefaultMinForType(type), getDefaultMaxForType(type));
     }
 
     private WorldHeightConfig loadWorldHeightConfig(ConfigurationSection section) {
@@ -85,26 +72,12 @@ public class WorldHeightManager {
 
     public WorldHeightConfig getHeightConfigForWorld(World world) {
         String worldName = world.getName().toLowerCase();
-        if (worldHeights.containsKey(worldName)) {
-            return worldHeights.get(worldName);
-        }
+        if (worldHeights.containsKey(worldName)) return worldHeights.get(worldName);
         return switch (world.getEnvironment()) {
             case NETHER -> defaultNether;
             case THE_END -> defaultEnd;
             default -> defaultNormal;
         };
-    }
-
-    public int getMinYForWorld(World world) {
-        return getHeightConfigForWorld(world).getMinY();
-    }
-
-    public int getMaxYForWorld(World world) {
-        return getHeightConfigForWorld(world).getMaxY();
-    }
-
-    public boolean shouldUseDefaultAlgorithm(World world) {
-        return getHeightConfigForWorld(world).isUseDefaultAlgorithm();
     }
 
     @Getter
@@ -129,6 +102,5 @@ public class WorldHeightManager {
         public void setWorldName(String worldName) {
             this.worldName = worldName;
         }
-
     }
 }

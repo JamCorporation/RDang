@@ -1,12 +1,13 @@
 package ru.truhot.rdang.util;
 
-import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.Property;
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
-import java.lang.reflect.Field;
+
 import java.util.UUID;
 
 public class HeadUtil {
@@ -20,7 +21,7 @@ public class HeadUtil {
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         if (meta == null) return head;
 
-        setSkullTexture(meta, base64, sectionName);
+        setSkullTexture(meta, base64);
         head.setItemMeta(meta);
         return head;
     }
@@ -35,15 +36,13 @@ public class HeadUtil {
         return createSkullFromBase64(base64, sectionName);
     }
 
-    public static void setSkullTexture(SkullMeta meta, String texture, String sectionName) {
+    public static void setSkullTexture(SkullMeta meta, String texture) {
         if (meta == null || texture == null || texture.isEmpty()) return;
-        try {
-            GameProfile profile = new GameProfile(UUID.randomUUID(), null);
-            profile.getProperties().put("textures", new Property("textures", texture));
-            Field profileField = meta.getClass().getDeclaredField("profile");
-            profileField.setAccessible(true);
-            profileField.set(meta, profile);
-        } catch (Exception ignored) {}
+
+        PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
+        profile.getProperties().add(new ProfileProperty("textures", texture));
+
+        meta.setPlayerProfile(profile);
     }
 
     public static String getSkullTexture(ItemStack head) {
@@ -51,14 +50,16 @@ public class HeadUtil {
         ItemMeta meta = head.getItemMeta();
         if (!(meta instanceof SkullMeta)) return null;
 
-        try {
-            Field profileField = meta.getClass().getDeclaredField("profile");
-            profileField.setAccessible(true);
-            GameProfile profile = (GameProfile) profileField.get(meta);
-            if (profile != null && profile.getProperties().containsKey("textures")) {
-                return profile.getProperties().get("textures").iterator().next().getValue();
-            }
-        } catch (Exception ignored) {}
+        SkullMeta skullMeta = (SkullMeta) meta;
+        PlayerProfile profile = skullMeta.getPlayerProfile();
+
+        if (profile != null) {
+            return profile.getProperties().stream()
+                    .filter(prop -> prop.getName().equals("textures"))
+                    .findFirst()
+                    .map(ProfileProperty::getValue)
+                    .orElse(null);
+        }
         return null;
     }
 

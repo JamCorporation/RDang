@@ -78,14 +78,12 @@ public class SchemAction {
                                 copy.setCopyingBiomes(copyBiomes);
                                 Operations.complete(copy);
                             } catch (WorldEditException e) {
-                                System.out.println("[RDang] Ошибка WorldEdit при послойном спавне: " + e.getMessage());
                                 this.cancel();
                             }
                             currentY++;
                         }
                     }.runTaskTimer(plugin, 1L, 1L);
                 } catch (Exception e) {
-                    System.out.println("[RDang] Ошибка при чтении схемы для послойного спавна: " + fileName);
                 }
             }
         }.runTaskAsynchronously(plugin);
@@ -98,10 +96,6 @@ public class SchemAction {
         try (ClipboardReader reader = format.getReader(new FileInputStream(schemFile))) {
             final Clipboard clipboard = reader.read();
             boolean ignoreAirBlocks = configManager.getSchem().getBoolean("ignore-air-blocks", true);
-            int rotation = configManager.getSchem().getInt("rotation", 0);
-            boolean mirror = configManager.getSchem().getBoolean("mirror", false);
-            boolean copyEntities = configManager.getSchem().getBoolean("entities", true);
-            boolean copyBiomes = configManager.getSchem().getBoolean("biomes", false);
             ConfigurationSection offsetSection = configManager.getSchem().getConfigurationSection("schem-offset");
             double offsetX = offsetSection != null ? offsetSection.getDouble("x") : 0;
             double offsetY = offsetSection != null ? offsetSection.getDouble("y") : 0;
@@ -110,17 +104,9 @@ public class SchemAction {
             final BlockVector3 coordinates = BlockVector3.at(adjustedLocation.getX(), adjustedLocation.getY(), adjustedLocation.getZ());
             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(adjustedLocation.getWorld()))) {
                 ClipboardHolder clipboardHolder = new ClipboardHolder(clipboard);
-                if (rotation != 0 || mirror) {
-                    AffineTransform transform = new AffineTransform();
-                    if (rotation != 0) transform = transform.rotateY(rotation);
-                    if (mirror) transform = transform.scale(-1, 1, 1);
-                    clipboardHolder.setTransform(transform);
-                }
                 Operation operation = clipboardHolder.createPaste(editSession)
                         .to(coordinates)
                         .ignoreAirBlocks(ignoreAirBlocks)
-                        .copyEntities(copyEntities)
-                        .copyBiomes(copyBiomes)
                         .build();
                 Operations.complete(operation);
             }

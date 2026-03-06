@@ -5,11 +5,6 @@ schem-offset: # Смещение схемы относительно точки 
   y: 1
   z: 0
 
-rotation: 0
-mirror: false
-entities: false
-biomes: false
-
 world-heights: # Настройки высот для разных миров можно кастом миры добавлять
   normal:
     type: normal

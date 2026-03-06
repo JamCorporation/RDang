@@ -26,7 +26,7 @@ public class DangManager {
             if (dangSection == null) continue;
             String fileName = dangSection.getString("fileName");
             String world = dangSection.getString("world");
-            String biomeString = dangSection.getString("biome", "DESERT");
+            String biomeString = dangSection.getString("biome");
             if (fileName == null || world == null) {
                 continue;
             }
