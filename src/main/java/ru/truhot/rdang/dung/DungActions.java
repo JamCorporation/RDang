@@ -21,7 +21,6 @@ import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.data.DangData;
 import ru.truhot.rdang.schem.SchemAction;
 import ru.truhot.rdang.util.UndoUtil;
-
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Random;
@@ -35,9 +34,13 @@ public class DungActions {
     private final UndoUtil undoUtil;
 
     public void spawn(@NotNull Location loc) {
+        int minDist = configManager.getRegion().getInt("check.distance-dangs");
+        boolean checkOtherRegions = configManager.getRegion().getBoolean("check.check_other_regions");
+        if (checkDistance(loc, minDist)) return;
+        if (checkOtherRegions && checkInside(loc)) return;
         final World world = loc.getWorld();
         final List<DangData> dangDataList = configManager.getDangManager().getDangs();
-        int freeId = findFreeRegionId();
+        int freeId = getFreeId();
         String nameFormat = configManager.getRegion().getString("region.name_format");
         String regionName = nameFormat.replace("{id}", String.valueOf(freeId));
         for (int i = 0; i < 20; i++) {
@@ -53,18 +56,13 @@ public class DungActions {
                 schemAction.spawnSchem(loc, dangData.getFileName());
                 int maxY = configManager.getRegion().getInt("region.height.max");
                 addShulkers.addShulkersInRegion(loc, radiusX, radiusZ, minY, maxY);
-                createRegionWithId(loc.getBlockX(), loc.getBlockZ(), world, freeId);
+                buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
                 return;
             }
         }
     }
 
-    public String createRegion(int x, int z, World worldBukkit) {
-        int freeId = findFreeRegionId();
-        return createRegionWithId(x, z, worldBukkit, freeId);
-    }
-
-    public String createRegionWithId(int x, int z, World worldBukkit, int id) {
+    public String buildRegion(int x, int z, World worldBukkit, int id) {
         final RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         int radiusX = configManager.getRegion().getInt("region.size.x");
         int radiusZ = configManager.getRegion().getInt("region.size.z");
@@ -78,14 +76,14 @@ public class DungActions {
                 final BlockVector3 minPoint = BlockVector3.at(x - radiusX, minY, z - radiusZ);
                 final BlockVector3 maxPoint = BlockVector3.at(x + radiusX, maxY, z + radiusZ);
                 final ProtectedCuboidRegion region = new ProtectedCuboidRegion(regionName, minPoint, maxPoint);
-                setFlagsFromConfig(region);
+                applyFlags(region);
                 regionManager.addRegion(region);
             }
         }
         return regionName;
     }
 
-    public int findFreeRegionId() {
+    public int getFreeId() {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         if (container == null) return 1;
         String nameFormat = configManager.getRegion().getString("region.name_format");
@@ -105,7 +103,7 @@ public class DungActions {
         }
     }
 
-    private void setFlagsFromConfig(ProtectedCuboidRegion region) {
+    private void applyFlags(ProtectedCuboidRegion region) {
         var flagsSection = configManager.getRegion().getConfigurationSection("region.flags");
         if (flagsSection == null) return;
         for (String flagName : flagsSection.getKeys(false)) {
@@ -123,12 +121,13 @@ public class DungActions {
         }
     }
 
-    private boolean isTooCloseToOtherDang(Location loc, int minDist) {
+    private boolean checkDistance(Location loc, int minDist) {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         if (container == null) return false;
         RegionManager manager = container.get(BukkitAdapter.adapt(loc.getWorld()));
         if (manager == null) return false;
-        String prefix = configManager.getRegion().getString("region.name_format").replace("{id}", "");
+        String rawFormat = configManager.getRegion().getString("region.name_format");
+        String prefix = rawFormat.split("\\{")[0];
         return manager.getRegions().values().stream()
                 .filter(r -> r.getId().startsWith(prefix))
                 .anyMatch(r -> {
@@ -136,16 +135,17 @@ public class DungActions {
                     BlockVector3 max = r.getMaximumPoint();
                     double centerX = (min.getX() + max.getX()) / 2.0;
                     double centerZ = (min.getZ() + max.getZ()) / 2.0;
-                    return Math.sqrt(Math.pow(loc.getX() - centerX, 2) + Math.pow(loc.getZ() - centerZ, 2)) < minDist;
+                    return Math.hypot(loc.getX() - centerX, loc.getZ() - centerZ) < minDist;
                 });
     }
 
-    private boolean isInOtherRegion(Location location) {
+    private boolean checkInside(Location location) {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         if (container == null) return false;
         RegionManager manager = container.get(BukkitAdapter.adapt(location.getWorld()));
         if (manager == null) return false;
-        String prefix = configManager.getRegion().getString("region.name_format").replace("{id}", "");
+        String rawFormat = configManager.getRegion().getString("region.name_format");
+        String prefix = rawFormat.split("\\{")[0];
         BlockVector3 vector = BukkitAdapter.asBlockVector(location);
         return manager.getApplicableRegions(vector).getRegions().stream()
                 .anyMatch(r -> !r.getId().startsWith(prefix));

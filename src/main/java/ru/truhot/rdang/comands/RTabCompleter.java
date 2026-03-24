@@ -34,7 +34,7 @@ public class RTabCompleter implements TabCompleter {
         }
 
         if (args.length == 1) {
-            return Stream.of("additem", "spawn", "givekey", "reload", "schem", "undo", "compass", "list")
+            return Stream.of("additem", "spawn", "givekey", "reload", "schem", "undo", "compass", "list", "admins")
                     .filter(arg -> arg.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
@@ -72,10 +72,24 @@ public class RTabCompleter implements TabCompleter {
             }
         }
 
-        if (args.length == 2 && subCommand.equals("spawn")) {
-            List<String> suggestions = new ArrayList<>();
-            suggestions.add("<количество>");
-            return suggestions.stream()
+        if (subCommand.equals("spawn")) {
+            if (args.length == 2) {
+                List<String> suggestions = new ArrayList<>();
+                suggestions.add("<количество>");
+                return suggestions.stream()
+                        .filter(arg -> arg.toLowerCase().startsWith(args[1].toLowerCase()))
+                        .collect(Collectors.toList());
+            }
+            if (args.length == 3) {
+                return Bukkit.getWorlds().stream()
+                        .map(org.bukkit.World::getName)
+                        .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))
+                        .collect(Collectors.toList());
+            }
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("admins")) {
+            return Stream.of("test", "remove", "loot")
                     .filter(arg -> arg.toLowerCase().startsWith(args[1].toLowerCase()))
                     .collect(Collectors.toList());
         }

@@ -58,7 +58,7 @@ public class ItemManager {
             if (cooldownStr == null) {
                 System.out.println("[Rdang] нету сooldown в секции compass");
             } else {
-                this.compassCooldown = TimeUtil.parseTimeString(cooldownStr);
+                this.compassCooldown = TimeUtil.parse(cooldownStr);
             }
         }
     }

@@ -33,11 +33,11 @@ public final class RDang extends JavaPlugin {
         UndoUtil undoUtil = new UndoUtil(configManager, shulkers, blockStorage, this);
         MainCore mainCore = CoreFactory.createDang(items, shulkers, configManager, undoUtil);
         ShulkerActions shulkerActions = new BDangShulker(mainCore);
-        AddShulkers addShulkers = new AddShulkers(shulkerActions);
+        AddShulkers addShulkers = new AddShulkers(this, shulkerActions);
         SchemAction schemAction = new SchemAction(this, configManager);
         DungActions dungActions = new DungActions(schemAction, addShulkers, configManager, undoUtil);
         MenuManager menuManager = new MenuManager(configManager, shulkers, blockStorage, this);
-        Command command = new Command(mainCore, dungActions, this, items, shulkers, blockStorage, configManager, menuManager, undoUtil);
+        Command command = new Command(mainCore, dungActions, this, items, shulkers, blockStorage, configManager, menuManager, undoUtil, mainCore.getShulkerManager());
         getServer().getPluginManager().registerEvents(menuManager, this);
         getCommand("rdang").setExecutor(command);
         getCommand("rdang").setTabCompleter(new RTabCompleter(this));

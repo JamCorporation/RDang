@@ -19,7 +19,7 @@ public class TeleportUtil {
         this.configManager = configManager;
     }
 
-    public boolean teleportToDungeon(Player player, String regionId) {
+    public boolean teleport(Player player, String regionId) {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         for (World world : Bukkit.getWorlds()) {
             RegionManager manager = container.get(BukkitAdapter.adapt(world));

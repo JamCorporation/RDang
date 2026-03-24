@@ -23,3 +23,9 @@ world-heights: # Настройки высот для разных миров м
     min: 40
     max: 80
     use-default-algorithm: true
+custom-worlds:
+  world1: #Это worldName (название папки мира)
+    type: normal #Это type (просто категория для дефолтов)
+    min: 70
+    max: 256
+    use-default-algorithm: true

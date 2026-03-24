@@ -40,20 +40,20 @@ public class SchemCommand implements CommandExecutor {
             return true;
         }
         String schemName = args[1];
-        File schemFile = findSchematicFile(schemName);
+        File schemFile = findFile(schemName);
         if (schemFile == null || !schemFile.exists()) {
             player.sendMessage(MessageUtil.colorize(getMessage("schem.not-found").replace("{schem}", schemName)));
             return true;
         }
         String fileNameOnly = schemFile.getName();
-        if (!isSchematicRegistered(fileNameOnly)) {
+        if (!isRegistered(fileNameOnly)) {
             player.sendMessage(MessageUtil.colorize(getMessage("schem.not-registered").replace("{schem}", fileNameOnly)));
             return true;
         }
         Location spawnLocation = player.getLocation().add(player.getLocation().getDirection().multiply(3));
         spawnLocation.setY(player.getWorld().getHighestBlockYAt(spawnLocation.getBlockX(), spawnLocation.getBlockZ()));
         try {
-            int freeId = dungActions.findFreeRegionId();
+            int freeId = dungActions.getFreeId();
             String regionName = configManager.getRegion().getString("region.name_format", "dang_{id}").replace("{id}", String.valueOf(freeId));
             dungActions.getSchemAction().createBackup(spawnLocation, regionName);
             dungActions.getSchemAction().spawnSchem(spawnLocation, fileNameOnly);
@@ -62,7 +62,7 @@ public class SchemCommand implements CommandExecutor {
             int minY = configManager.getRegion().getInt("region.height.min", -10);
             int maxY = configManager.getRegion().getInt("region.height.max", 10);
             dungActions.getAddShulkers().addShulkersInRegion(spawnLocation, rx, rz, minY, maxY);
-            dungActions.createRegionWithId(spawnLocation.getBlockX(), spawnLocation.getBlockZ(), spawnLocation.getWorld(), freeId);
+            dungActions.buildRegion(spawnLocation.getBlockX(), spawnLocation.getBlockZ(), spawnLocation.getWorld(), freeId);
             undoUtil.saveDungeonData(regionName, spawnLocation.getWorld(), BlockVector3.at(spawnLocation.getBlockX() - rx, minY, spawnLocation.getBlockZ() - rz));
             player.sendMessage(MessageUtil.colorize(getMessage("schem.success").replace("{schem}", fileNameOnly).replace("{x}", String.valueOf(spawnLocation.getBlockX())).replace("{y}", String.valueOf(spawnLocation.getBlockY())).replace("{z}", String.valueOf(spawnLocation.getBlockZ()))));
             return true;
@@ -73,14 +73,14 @@ public class SchemCommand implements CommandExecutor {
         }
     }
 
-    private File findSchematicFile(String name) {
+    private File findFile(String name) {
         File folder = new File(plugin.getDataFolder(), "schem");
         if (name.toLowerCase().endsWith(".schem") || name.toLowerCase().endsWith(".schematic")) return new File(folder, name);
         File f1 = new File(folder, name + ".schem");
         return f1.exists() ? f1 : new File(folder, name + ".schematic");
     }
 
-    private boolean isSchematicRegistered(String fileName) {
+    private boolean isRegistered(String fileName) {
         return configManager.getDangManager().getDangs().stream().anyMatch(d -> d.getFileName().equalsIgnoreCase(fileName));
     }
 

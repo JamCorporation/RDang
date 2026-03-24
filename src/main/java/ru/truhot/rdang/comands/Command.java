@@ -11,6 +11,9 @@ import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
 import ru.truhot.rdang.сore.MainCore;
+import ru.truhot.rdang.сore.managers.ShulkerManager;
+
+import java.util.List;
 
 public class Command implements CommandExecutor {
     private final RDang plugin;
@@ -24,13 +27,16 @@ public class Command implements CommandExecutor {
     private final UndoCommand undoCommand;
     private final ListCommand listCommand;
     private final UndoUtil undoUtil;
+    private final AdminsCommand adminsCommand;
 
     public Command(MainCore mainCore, DungActions dungActions, RDang plugin,
                    Storage items, Storage shulkers, Storage block,
-                   ConfigManager configManager, MenuManager menuManager, UndoUtil undoUtil) {
+                   ConfigManager configManager, MenuManager menuManager, UndoUtil undoUtil,
+                   ShulkerManager shulkerManager) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.undoUtil = undoUtil;
+        this.adminsCommand = new AdminsCommand(shulkerManager, mainCore.getLootManager(), shulkers, configManager);
         this.addItemCommand = new AddItemCommand(mainCore, configManager);
         this.spawnCommand = new SpawnCommand(dungActions, configManager);
         this.giveKeyCommand = new GiveKeyCommand(configManager);
@@ -48,7 +54,9 @@ public class Command implements CommandExecutor {
             sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
             return true;
         }
+
         if (args.length == 0) {
+            sendHelp(sender);
             return true;
         }
 
@@ -70,10 +78,19 @@ public class Command implements CommandExecutor {
                 return undoCommand.onCommand(sender, command, label, args);
             case "list":
                 return listCommand.onCommand(sender, command, label, args);
+            case "admins":
+                return adminsCommand.onCommand(sender, command, label, args);
             default:
                 String unknownMsg = getMessage("unknown-command").replace("{command}", subCommand);
                 sender.sendMessage(MessageUtil.colorize(unknownMsg));
                 return true;
+        }
+    }
+
+    private void sendHelp(CommandSender sender) {
+        List<String> helpMessages = configManager.getMessages().getStringList("messages.help");
+        for (String msg : helpMessages) {
+            sender.sendMessage(MessageUtil.colorize(msg));
         }
     }
 

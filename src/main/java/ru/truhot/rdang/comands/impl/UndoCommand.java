@@ -20,20 +20,23 @@ public class UndoCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (args.length < 2) {
+        if (args.length != 2) {
             sender.sendMessage(MessageUtil.colorize(getMessage("undo.usage")));
             return true;
         }
+
         String dungeonId = args[1];
         String regionName = configManager.getRegion().getString("region.name_format", "dang_{id}")
                 .replace("{id}", dungeonId);
         UndoUtil.UndoResult result = undoUtil.performUndo(regionName);
+
         if (!result.found) {
             sender.sendMessage(MessageUtil.colorize(getMessage("undo.region-not-found")
                     .replace("{id}", dungeonId)
                     .replace("{region}", regionName)));
             return true;
         }
+
         sender.sendMessage(MessageUtil.colorize(getMessage("undo.region-deleted")
                 .replace("{id}", dungeonId)
                 .replace("{region}", regionName)

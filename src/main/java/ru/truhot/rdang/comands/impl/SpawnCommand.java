@@ -1,5 +1,6 @@
 package ru.truhot.rdang.comands.impl;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.Command;
@@ -23,40 +24,56 @@ public class SpawnCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("only-player")));
+        if (args.length < 2 || args.length > 3) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("spawn.usage")));
             return true;
         }
-        if (args.length != 2) {
-            player.sendMessage(MessageUtil.colorize(getMessage("spawn.usage")));
+
+        World targetWorld = null;
+
+        if (args.length == 3) {
+            targetWorld = Bukkit.getWorld(args[2]);
+            if (targetWorld == null) {
+                sender.sendMessage(MessageUtil.colorize(getMessage("spawn.world-not-found").replace("{world}", args[2])));
+                return true;
+            }
+        } else {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(MessageUtil.colorize(getMessage("only-player")));
+                return true;
+            }
+            targetWorld = player.getWorld();
+        }
+        if (configManager.getDangManager().getDangsForWorld(targetWorld.getName()).isEmpty()) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("spawn.no-dang-world").replace("{world}", targetWorld.getName())));
             return true;
         }
-        World world = player.getWorld();
         try {
             int amount = Integer.parseInt(args[1]);
             if (amount <= 0) {
-                player.sendMessage(MessageUtil.colorize(getMessage("spawn.amount-positive")));
+                sender.sendMessage(MessageUtil.colorize(getMessage("spawn.amount-positive")));
                 return true;
             }
             int spawnedCount = 0;
             for (int i = 0; i < amount; i++) {
-                Location loc = configManager.getSpawnManager().findSuitableDungLocation(world, random);
+                Location loc = configManager.getSpawnManager().findSuitableDungLocation(targetWorld, random);
                 if (loc != null) {
                     dungActions.spawn(loc);
                     String spawnedMsg = getMessage("spawn.spawned")
                             .replace("{x}", String.valueOf(loc.getBlockX()))
                             .replace("{y}", String.valueOf(loc.getBlockY()))
-                            .replace("{z}", String.valueOf(loc.getBlockZ()));
-                    player.sendMessage(MessageUtil.colorize(spawnedMsg));
+                            .replace("{z}", String.valueOf(loc.getBlockZ()))
+                            .replace("{world}", targetWorld.getName());
+                    sender.sendMessage(MessageUtil.colorize(spawnedMsg));
                     spawnedCount++;
                 }
             }
             if (spawnedCount == 0) {
-                player.sendMessage(MessageUtil.colorize(getMessage("spawn.none-spawned")));
+                sender.sendMessage(MessageUtil.colorize(getMessage("spawn.none-spawned")));
             }
             return true;
         } catch (NumberFormatException e) {
-            player.sendMessage(MessageUtil.colorize(getMessage("spawn.invalid-number")));
+            sender.sendMessage(MessageUtil.colorize(getMessage("spawn.invalid-number")));
             return true;
         }
     }

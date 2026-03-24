@@ -45,107 +45,82 @@ public class EventManager implements Listener {
     public void onClick(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {return;}
         ConfigurationSection locsSection = this.shulkers.getConfig().getConfigurationSection("locs");
-        if (locsSection != null) {
-            if (event.getClickedBlock() != null) {
-                if (this.shulkerManager.isShulker(event.getClickedBlock())) {
-                    for(String itemId : locsSection.getKeys(false)) {
-                        ConfigurationSection shulker = locsSection.getConfigurationSection(itemId);
-                        Location shulkerLocation = shulker.getLocation("location");
-                        if (event.getClickedBlock().getLocation().getBlockX() == shulkerLocation.getBlockX() && event.getClickedBlock().getLocation().getBlockY() == shulkerLocation.getBlockY() && event.getClickedBlock().getLocation().getBlockZ() == shulkerLocation.getBlockZ() && event.getClickedBlock().getLocation().getWorld().getName().equals(shulkerLocation.getWorld().getName()) && !shulker.getBoolean("opened")) {
-                            ItemStack itemInHand = event.getPlayer().getItemInHand();
-                            if (itemInHand != null && itemInHand.getType() != Material.AIR && itemInHand.getItemMeta() != null) {
-                                if (this.itemChecker.isValidKey(itemInHand)) {
-                                    String particleTypeStr = this.configManager.getShulker().getString("particles.type", "TOTEM");
-
-                                    Particle particleType;
-                                    try {
-                                        particleType = Particle.valueOf(particleTypeStr.toUpperCase());} catch (IllegalArgumentException var25) {
-                                        particleType = Particle.TOTEM;}
-                                    int particleCount = this.configManager.getShulker().getInt("particles.count", 20);
-                                    double offsetX = this.configManager.getShulker().getDouble("particles.offsetX", (double)1.5F);
-                                    double offsetY = this.configManager.getShulker().getDouble("particles.offsetY", (double)1.5F);
-                                    double offsetZ = this.configManager.getShulker().getDouble("particles.offsetZ", (double)1.5F);
-                                    double particleExtra = this.configManager.getShulker().getDouble("particles.extra", 0.1);
-                                    String openSoundStr = this.configManager.getShulker().getString("sounds.openSound", "UI_TOAST_CHALLENGE_COMPLETE");
-
-                                    try {
-                                        Sound openSound = Sound.valueOf(openSoundStr.toUpperCase());
-                                        float volume = (float)this.configManager.getShulker().getInt("sounds.volume", 50) / 100.0F;
-                                        float pitch = (float)this.configManager.getShulker().getDouble("sounds.pitch", (double)1.0F);
-                                        shulkerLocation.getWorld().playSound(shulkerLocation, openSound, volume, pitch);
-                                    } catch (IllegalArgumentException var24) {
-                                        shulkerLocation.getWorld().playSound(shulkerLocation, Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.5F, 1.0F);
-                                    }
-
-                                    shulkerLocation.getWorld().spawnParticle(particleType, shulkerLocation.clone().add((double)0.5F, (double)1.0F, (double)0.5F), particleCount, offsetX, offsetY, offsetZ, particleExtra);
-                                    shulkerLocation.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, shulkerLocation.clone().add((double)0.5F, (double)1.0F, (double)0.5F), 10, (double)0.5F, (double)2.0F, (double)0.5F, 0.1);
-                                    shulker.set("opened", true);
-                                    this.shulkers.save();
-                                    this.checkAndScheduleCleanup(shulkerLocation);
-
-                                    for(Player player : Bukkit.getOnlinePlayers()) {
-                                        for(String s : this.configManager.getMessageManager().getFormattedOpenDungMessages(event.getPlayer().getName())) {
-                                            player.sendMessage(s);
-                                        }
-                                    }
-
-                                    int saveChance = this.configManager.getItemManager().getSaveChance();
-                                    if (Math.random() * (double)100.0F < (double)saveChance) {
-                                        event.getPlayer().sendMessage(this.configManager.getMessageManager().getSaveKeyMessage());
-                                    } else {
-                                        ItemStack hand = event.getPlayer().getItemInHand();
-                                        if (hand.getAmount() > 1) {
-                                            hand.setAmount(hand.getAmount() - 1);
-                                        } else {
-                                            event.getPlayer().setItemInHand(new ItemStack(Material.AIR));
-                                        }
-                                    }
-
-                                    return;
-                                }
-
-                                for(String s : this.configManager.getMessageManager().getClosedDungMessages()) {
-                                    event.getPlayer().sendMessage(s);
-                                }
-
-                                String lockedSoundStr = this.configManager.getShulker().getString("sounds.lockedSound", "BLOCK_BARREL_CLOSE");
-
-                                try {
-                                    Sound lockedSound = Sound.valueOf(lockedSoundStr.toUpperCase());
-                                    float volume = (float)this.configManager.getShulker().getInt("sounds.volume", 50) / 100.0F;
-                                    float pitch = (float)this.configManager.getShulker().getDouble("sounds.pitch", (double)1.0F);
-                                    event.getPlayer().playSound(event.getPlayer().getLocation(), lockedSound, volume, pitch);
-                                    shulkerLocation.getWorld().playSound(shulkerLocation, lockedSound, volume * 0.5F, pitch * 0.8F);
-                                } catch (IllegalArgumentException var26) {
-                                    event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.BLOCK_BARREL_CLOSE, 0.5F, 1.0F);
-                                }
-
-                                event.setCancelled(true);
-                                return;
-                            }
-
-                            for(String s : this.configManager.getMessageManager().getClosedDungMessages()) {
-                                event.getPlayer().sendMessage(s);
-                            }
-
-                            String lockedSoundStr = this.configManager.getShulker().getString("sounds.lockedSound", "BLOCK_BARREL_CLOSE");
-
+        if (locsSection != null && event.getClickedBlock() != null) {
+            if (this.shulkerManager.isShulker(event.getClickedBlock())) {
+                for(String itemId : locsSection.getKeys(false)) {
+                    ConfigurationSection shulker = locsSection.getConfigurationSection(itemId);
+                    Location shulkerLocation = shulker.getLocation("location");
+                    if (event.getClickedBlock().getLocation().getBlockX() == shulkerLocation.getBlockX() &&
+                            event.getClickedBlock().getLocation().getBlockY() == shulkerLocation.getBlockY() &&
+                            event.getClickedBlock().getLocation().getBlockZ() == shulkerLocation.getBlockZ() &&
+                            event.getClickedBlock().getLocation().getWorld().getName().equals(shulkerLocation.getWorld().getName()) &&
+                            !shulker.getBoolean("opened")) {
+                        ItemStack itemInHand = event.getPlayer().getItemInHand();
+                        if (itemInHand != null && itemInHand.getType() != Material.AIR && itemInHand.getItemMeta() != null && this.itemChecker.isValidKey(itemInHand)) {
+                            String pTypeStr = this.configManager.getShulker().getString("particles.open.type", "TOTEM");
+                            Particle pType;
+                            try { pType = Particle.valueOf(pTypeStr.toUpperCase()); } catch (Exception e) { pType = Particle.TOTEM; }
+                            int pCount = this.configManager.getShulker().getInt("particles.open.count", 20);
+                            double pOx = this.configManager.getShulker().getDouble("particles.open.offsetX", 1.5);
+                            double pOy = this.configManager.getShulker().getDouble("particles.open.offsetY", 1.5);
+                            double pOz = this.configManager.getShulker().getDouble("particles.open.offsetZ", 1.5);
+                            double pExtra = this.configManager.getShulker().getDouble("particles.open.extra", 0.1);
+                            shulkerLocation.getWorld().spawnParticle(pType, shulkerLocation.clone().add(0.5, 1.0, 0.5), pCount, pOx, pOy, pOz, pExtra);
+                            String sTypeStr = this.configManager.getShulker().getString("sounds.open.type", "UI_TOAST_CHALLENGE_COMPLETE");
                             try {
-                                Sound lockedSound = Sound.valueOf(lockedSoundStr.toUpperCase());
-                                float volume = (float)this.configManager.getShulker().getInt("sounds.volume", 50) / 100.0F;
-                                float pitch = (float)this.configManager.getShulker().getDouble("sounds.pitch", (double)1.0F);
-                                event.getPlayer().playSound(event.getPlayer().getLocation(), lockedSound, volume, pitch);
-                                shulkerLocation.getWorld().playSound(shulkerLocation, lockedSound, volume * 0.5F, pitch * 0.8F);
-                            } catch (IllegalArgumentException var27) {
-                                event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.BLOCK_BARREL_CLOSE, 0.5F, 1.0F);
+                                Sound sType = Sound.valueOf(sTypeStr.toUpperCase());
+                                float sVol = (float)this.configManager.getShulker().getInt("sounds.open.volume", 50) / 100.0F;
+                                float sPitch = (float)this.configManager.getShulker().getDouble("sounds.open.pitch", 1.0);
+                                shulkerLocation.getWorld().playSound(shulkerLocation, sType, sVol, sPitch);
+                            } catch (Exception e) {
+                                shulkerLocation.getWorld().playSound(shulkerLocation, Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.5F, 1.0F);
                             }
-
-                            event.setCancelled(true);
+                            shulker.set("opened", true);
+                            this.shulkers.save();
+                            this.checkAndScheduleCleanup(shulkerLocation);
+                            for(Player player : Bukkit.getOnlinePlayers()) {
+                                for(String s : this.configManager.getMessageManager().getFormattedOpenDungMessages(event.getPlayer().getName())) {
+                                    player.sendMessage(s);
+                                }
+                            }
+                            int saveChance = this.configManager.getItemManager().getSaveChance();
+                            if (Math.random() * 100.0 < (double)saveChance) {
+                                event.getPlayer().sendMessage(this.configManager.getMessageManager().getSaveKeyMessage());
+                            } else {
+                                if (itemInHand.getAmount() > 1) {
+                                    itemInHand.setAmount(itemInHand.getAmount() - 1);
+                                } else {
+                                    event.getPlayer().setItemInHand(new ItemStack(Material.AIR));
+                                }
+                            }
                             return;
                         }
+                        event.setCancelled(true);
+                        String pTypeStrL = this.configManager.getShulker().getString("particles.locked.type", "TOTEM");
+                        Particle pTypeL;
+                        try { pTypeL = Particle.valueOf(pTypeStrL.toUpperCase()); } catch (Exception e) { pTypeL = Particle.TOTEM; }
+                        int pCountL = this.configManager.getShulker().getInt("particles.locked.count", 20);
+                        double pOxL = this.configManager.getShulker().getDouble("particles.locked.offsetX", 1.5);
+                        double pOyL = this.configManager.getShulker().getDouble("particles.locked.offsetY", 1.5);
+                        double pOzL = this.configManager.getShulker().getDouble("particles.locked.offsetZ", 1.5);
+                        double pExtraL = this.configManager.getShulker().getDouble("particles.locked.extra", 0.1);
+                        shulkerLocation.getWorld().spawnParticle(pTypeL, shulkerLocation.clone().add(0.5, 1.0, 0.5), pCountL, pOxL, pOyL, pOzL, pExtraL);
+                        String sTypeStrL = this.configManager.getShulker().getString("sounds.locked.type", "BLOCK_BARREL_CLOSE");
+                        try {
+                            Sound sTypeL = Sound.valueOf(sTypeStrL.toUpperCase());
+                            float sVolL = (float)this.configManager.getShulker().getInt("sounds.locked.volume", 50) / 100.0F;
+                            float sPitchL = (float)this.configManager.getShulker().getDouble("sounds.locked.pitch", 1.0);
+                            event.getPlayer().playSound(event.getPlayer().getLocation(), sTypeL, sVolL, sPitchL);
+                            shulkerLocation.getWorld().playSound(shulkerLocation, sTypeL, sVolL * 0.5F, sPitchL * 0.8F);
+                        } catch (Exception e) {
+                            event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.BLOCK_BARREL_CLOSE, 0.5F, 1.0F);
+                        }
+                        for(String s : this.configManager.getMessageManager().getClosedDungMessages()) {
+                            event.getPlayer().sendMessage(s);
+                        }
+                        return;
                     }
                 }
-
             }
         }
     }
@@ -242,12 +217,25 @@ public class EventManager implements Listener {
 
     public void onCompassUse(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+
         ItemStack item = event.getItem();
         if (item == null || item.getType() == Material.AIR) return;
         if (!this.itemChecker.isCompassItem(item)) return;
+
         event.setCancelled(true);
         Player player = event.getPlayer();
-        if (player.hasCooldown(item.getType())) return;
+
+        if (player.hasCooldown(item.getType())) {
+            String cooldownMsg = this.configManager.getMessages().getString("messages.givecompass.cooldown");
+            if (cooldownMsg != null) {
+                int remainingTicks = player.getCooldown(item.getType());
+                long remainingSeconds = remainingTicks / 20;
+                String formattedTime = ru.truhot.rdang.util.TimeUtil.format(remainingSeconds);
+                player.sendMessage(MessageUtil.colorize(cooldownMsg.replace("{time}", formattedTime)));
+            }
+            return;
+        }
+
         Location randomDangLocation = this.getRandomDangLocation();
         if (randomDangLocation == null) {
             String noDangsMsg = this.configManager.getMessages().getString("messages.givecompass.no_dangs");
@@ -267,10 +255,12 @@ public class EventManager implements Listener {
         if (sound != null) {
             player.playSound(player.getLocation(), sound, 1.0F, 1.0F);
         }
+
         long cooldownTicks = this.configManager.getItemManager().getCompassCooldown() * 20L;
         if (cooldownTicks > 0) {
             player.setCooldown(item.getType(), (int) cooldownTicks);
         }
+
         if (item.getAmount() > 1) {
             item.setAmount(item.getAmount() - 1);
         } else {
@@ -318,7 +308,6 @@ public class EventManager implements Listener {
             return null;
         }
     }
-
 
 
     @EventHandler(

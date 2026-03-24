@@ -11,7 +11,7 @@ public class BDangShulker implements ShulkerActions {
 
     @Override
     public void addShulker(Location location) {
-        System.out.println("Adding shulker at " + location);
+        System.out.println("Добавление шалкера в " + location);
         bDang.addShulker(location);
     }
 }

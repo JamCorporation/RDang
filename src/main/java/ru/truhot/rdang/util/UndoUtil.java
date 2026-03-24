@@ -142,7 +142,7 @@ public class UndoUtil {
 
     public void scheduleAutoUndoWithActionBar(String regionName, World world, ProtectedRegion region) {
         String timeStr = configManager.getAuto().getString("auto.time");
-        long seconds = TimeUtil.parseTimeString(timeStr);
+        long seconds = TimeUtil.parse(timeStr);
         String rawMsg = configManager.getMessages().getString("messages.actionbar-timer");
         new BukkitRunnable() {
             private long timeLeft = seconds;
@@ -153,7 +153,7 @@ public class UndoUtil {
                     this.cancel();
                     return;
                 }
-                String formattedTime = TimeUtil.formatTime(timeLeft);
+                String formattedTime = TimeUtil.format(timeLeft);
                 String finalMsg = MessageUtil.colorize(rawMsg.replace("{time}", formattedTime));
                 for (Player player : world.getPlayers()) {
                     if (region.contains(BukkitAdapter.asBlockVector(player.getLocation()))) {

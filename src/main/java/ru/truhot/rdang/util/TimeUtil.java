@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 public class TimeUtil {
 
-    public static long parseTimeString(String timeStr) {
+    public static long parse(String timeStr) {
         if (timeStr == null || timeStr.isEmpty()) return 10L;
 
         long totalSeconds = 0;
@@ -17,16 +17,16 @@ public class TimeUtil {
             String unit = matcher.group(2);
 
             switch (unit) {
-                case "d": totalSeconds += value * 86400; break;
-                case "h": totalSeconds += value * 3600; break;
-                case "m": totalSeconds += value * 60; break;
-                case "s": totalSeconds += value; break;
+                case "d" -> totalSeconds += value * 86400;
+                case "h" -> totalSeconds += value * 3600;
+                case "m" -> totalSeconds += value * 60;
+                case "s" -> totalSeconds += value;
             }
         }
         return totalSeconds > 0 ? totalSeconds : 10L;
     }
 
-    public static String formatTime(long seconds) {
+    public static String format(long seconds) {
         if (seconds < 60) return seconds + "с";
         long m = seconds / 60;
         long s = seconds % 60;

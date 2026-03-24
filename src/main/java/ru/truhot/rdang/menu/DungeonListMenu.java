@@ -21,12 +21,12 @@ import ru.truhot.rdang.util.*;
 import java.util.*;
 
 public class DungeonListMenu extends AbstractMenu {
-    private static final int ITEMS_PER_PAGE = 45, INVENTORY_SIZE = 54, NEXT_PAGE_SLOT = 50, PREV_PAGE_SLOT = 48;
+    private static final int ITEMS_PER_PAGE = 45, INVENTORY_SIZE = 54, NEXT_PAGE_SLOT = 50, PREV_PAGE_SLOT = 48, DELETE_ALL_SLOT = 49;
     private final TeleportUtil teleportUtil;
     private final Storage shulkers, blockStorage;
     private final String prefix;
     private final ItemStack guiGlass = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
-    private final ItemStack infoItem, nextBtn, prevBtn;
+    private final ItemStack nextBtn, prevBtn, deleteAllBtn;
     private final Map<Material, ItemStack> dungeonTemplates = new EnumMap<>(Material.class);
 
     public DungeonListMenu(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin) {
@@ -36,13 +36,14 @@ public class DungeonListMenu extends AbstractMenu {
         this.teleportUtil = new TeleportUtil(configManager);
         String format = configManager.getRegion().getString("region.name_format", "dang_{id}");
         this.prefix = format.contains("{id}") ? format.split("\\{id\\}")[0].toLowerCase() : format.toLowerCase();
-        this.infoItem = createInfoItem();
+
         this.nextBtn = createNextBtn();
         this.prevBtn = createPrevBtn();
-        preCacheDungeonTemplates();
+        this.deleteAllBtn = createDeleteAllBtn();
+        setupTemplates();
     }
 
-    private void preCacheDungeonTemplates() {
+    private void setupTemplates() {
         for (Material m : List.of(Material.DIRT, Material.NETHERRACK, Material.END_STONE)) {
             ItemStack item = new ItemStack(m);
             ItemMeta meta = item.getItemMeta();
@@ -57,7 +58,7 @@ public class DungeonListMenu extends AbstractMenu {
 
     @Override
     public void openMenu(Player player, int page) {
-        List<String> allIds = getAllRegionIds();
+        List<String> allIds = getIds();
         if (allIds.isEmpty() && page == 0) {
             player.sendMessage(MessageUtil.colorize(configManager.getMessages().getString("messages.list.no-dungeons")));
             player.closeInventory();
@@ -68,21 +69,22 @@ public class DungeonListMenu extends AbstractMenu {
 
     @Override
     protected Inventory createInventory(Player player, int page) {
-        List<String> allIds = getAllRegionIds();
+        List<String> allIds = getIds();
         int maxPages = Math.max(1, (int) Math.ceil((double) allIds.size() / ITEMS_PER_PAGE));
         int curPage = Math.max(0, Math.min(page, maxPages - 1));
         Inventory inv = Bukkit.createInventory(new MenuHolder(getMenuId(), curPage), INVENTORY_SIZE, MessageUtil.getFormatted("§fСписок Данжей &7(%d/%d)", curPage + 1, maxPages));
         int start = curPage * ITEMS_PER_PAGE;
-        for (int i = 0; i < ITEMS_PER_PAGE && (start + i) < allIds.size(); i++) inv.setItem(i, getDungeonItemStack(allIds.get(start + i)));
+        for (int i = 0; i < ITEMS_PER_PAGE && (start + i) < allIds.size(); i++) inv.setItem(i, createIcon(allIds.get(start + i)));
         for (int s = 45; s < 54; s++) inv.setItem(s, guiGlass);
-        inv.setItem(49, infoItem);
+
+        inv.setItem(DELETE_ALL_SLOT, deleteAllBtn);
         if (curPage > 0) inv.setItem(PREV_PAGE_SLOT, prevBtn);
         if (curPage < maxPages - 1) inv.setItem(NEXT_PAGE_SLOT, nextBtn);
         return inv;
     }
 
-    private ItemStack getDungeonItemStack(String regionId) {
-        World world = getWorldForRegion(regionId);
+    private ItemStack createIcon(String regionId) {
+        World world = getWorld(regionId);
         Material m = Material.DIRT;
         if (world != null) {
             String name = world.getName().toLowerCase();
@@ -92,11 +94,11 @@ public class DungeonListMenu extends AbstractMenu {
         ItemStack item = dungeonTemplates.get(m).clone();
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(String.format(meta.getDisplayName(), extractRegionNumber(regionId)));
+            meta.setDisplayName(String.format(meta.getDisplayName(), getNumber(regionId)));
             List<String> lore = meta.getLore();
             if (lore != null) {
                 lore.set(1, String.format(lore.get(1), world != null ? world.getName() : "Unknown"));
-                lore.set(2, String.format(lore.get(2), getCoordinates(world, regionId)));
+                lore.set(2, String.format(lore.get(2), getCoords(world, regionId)));
                 meta.setLore(lore);
             }
             item.setItemMeta(meta);
@@ -112,44 +114,73 @@ public class DungeonListMenu extends AbstractMenu {
         MenuHolder holder = (MenuHolder) e.getInventory().getHolder();
         int slot = e.getRawSlot();
         int currentPage = holder.getPage();
+        if (slot == DELETE_ALL_SLOT) {
+            List<String> allIds = getIds();
+            if (allIds.isEmpty()) return;
+            UndoUtil undoUtil = new UndoUtil(configManager, shulkers, blockStorage, plugin);
+            int count = 0;
+            for (String rId : allIds) {
+                UndoUtil.UndoResult res = undoUtil.performUndo(rId);
+                if (res.found) count++;
+            }
+            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 0.5f, 1.2f);
+
+            player.sendMessage(MessageUtil.colorize("&7[&#6AFE76☑&7] &fУспешно удалено &#557c93" + count + " &fданжей."));
+            player.closeInventory();
+            return;
+        }
         if (slot == NEXT_PAGE_SLOT) {
+            player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.5f);
             openMenu(player, currentPage + 1);
             return;
         }
         if (slot == PREV_PAGE_SLOT) {
-            if (currentPage > 0) openMenu(player, currentPage - 1);
+            if (currentPage > 0) {
+                player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.5f);
+                openMenu(player, currentPage - 1);
+            }
             return;
         }
+
         if (slot >= ITEMS_PER_PAGE) return;
         if (dungeonTemplates.containsKey(item.getType())) {
-            List<String> ids = getAllRegionIds();
+            List<String> ids = getIds();
             int index = (currentPage * ITEMS_PER_PAGE) + slot;
             if (index < ids.size()) {
                 String rId = ids.get(index);
                 if (e.isRightClick()) {
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 0.6f, 1.0f);
                     player.closeInventory();
-                    teleportUtil.teleportToDungeon(player, rId);
-                } else if (e.isLeftClick()) {
+                    teleportUtil.teleport(player, rId);
+                }
+                else if (e.isLeftClick()) {
                     UndoUtil.UndoResult res = new UndoUtil(configManager, shulkers, blockStorage, plugin).performUndo(rId);
+
+                    if (res.found) {
+                        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_BREAK, 0.5f, 1.5f);
+                        openMenu(player, currentPage);
+                    } else {
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
+                    }
+
                     String msg = configManager.getMessages().getString(res.found ? "messages.undo.region-deleted" : "messages.undo.region-not-found");
-                    player.sendMessage(MessageUtil.getFormatted(msg, extractRegionNumber(rId), rId, res.worldName));
-                    if (res.found) openMenu(player, currentPage);
+                    player.sendMessage(MessageUtil.getFormatted(msg, getNumber(rId), rId, res.worldName));
                 }
             }
         }
     }
 
-    private List<String> getAllRegionIds() {
+    private List<String> getIds() {
         List<String> ids = new ArrayList<>();
         for (World w : Bukkit.getWorlds()) {
             RegionManager rm = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(w));
             if (rm != null) { for (String n : rm.getRegions().keySet()) if (n.toLowerCase().startsWith(prefix)) ids.add(n); }
         }
-        ids.sort(Comparator.comparingInt(this::extractRegionNumber));
+        ids.sort(Comparator.comparingInt(this::getNumber));
         return ids;
     }
 
-    private String getCoordinates(World w, String id) {
+    private String getCoords(World w, String id) {
         if (w == null) return "N/A";
         try {
             ProtectedRegion r = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(w)).getRegion(id);
@@ -159,7 +190,7 @@ public class DungeonListMenu extends AbstractMenu {
         } catch (Exception e) { return "N/A"; }
     }
 
-    private int extractRegionNumber(String id) {
+    private int getNumber(String id) {
         String n = id.replaceAll("[^0-9]", "");
         return n.isEmpty() ? 0 : Integer.parseInt(n);
     }
@@ -179,6 +210,18 @@ public class DungeonListMenu extends AbstractMenu {
         return i;
     }
 
+    private ItemStack createDeleteAllBtn() {
+        String texture = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTllYjg2Y2FlNzAzMTIxZWIxN2MzNjc4YzFkOWQxYzI4YzMwNzljMTAyODhjODQyYTQ4Mzk4ZWQ3ZDkzMzY2ZSJ9fX0=";
+        ItemStack i = HeadUtil.createSkullFromBase64(texture, "menu");
+        ItemMeta m = i.getItemMeta();
+        if (m != null) {
+            m.setDisplayName(MessageUtil.colorize("&fМусорка &8(:/)"));
+            m.setLore(MessageUtil.colorize(List.of("", " &fНажмите &#557c93пкм&f чтоб &cудалить&f все данжи", "")));
+            i.setItemMeta(m);
+        }
+        return i;
+    }
+
     private ItemStack createPrevBtn() {
         ItemStack i = HeadUtil.createSkullFromBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzYyNTkwMmIzODllZDZjMTQ3NTc0ZTQyMmRhOGY4ZjM2MWM4ZWI1N2U3NjMxNjc2YTcyNzc3ZTdiMWQifX19", "menu");
         ItemMeta m = i.getItemMeta();
@@ -187,14 +230,7 @@ public class DungeonListMenu extends AbstractMenu {
         return i;
     }
 
-    private ItemStack createInfoItem() {
-        ItemStack i = HeadUtil.createSkullFromBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTM1OWQ5MTI3NzI0MmZjMDFjMzA5YWNjYjg3YjUzM2YxOTI5YmUxNzZlY2JhMmNkZTYzYmY2MzVlMDVlNjk5YiJ9fX0=", "menu");
-        ItemMeta m = i.getItemMeta();
-        if (m != null) { m.setDisplayName(MessageUtil.colorize("§7[&#FEF06A₪§7] §fИнформация")); m.setLore(List.of("", MessageUtil.colorize(" &fСписок всех активных данжей"), "")); i.setItemMeta(m); }
-        return i;
-    }
-
-    private World getWorldForRegion(String id) {
+    private World getWorld(String id) {
         for (World w : Bukkit.getWorlds()) {
             RegionManager rm = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(w));
             if (rm != null && rm.hasRegion(id)) return w;
