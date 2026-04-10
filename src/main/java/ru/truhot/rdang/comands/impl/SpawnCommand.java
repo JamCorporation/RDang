@@ -24,6 +24,11 @@ public class SpawnCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission("rdang.spawn")) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+            return true;
+        }
+
         if (args.length < 2 || args.length > 3) {
             sender.sendMessage(MessageUtil.colorize(getMessage("spawn.usage")));
             return true;

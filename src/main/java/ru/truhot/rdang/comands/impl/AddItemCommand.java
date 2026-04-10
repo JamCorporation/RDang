@@ -23,6 +23,11 @@ public class AddItemCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission("rdang.additem")) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+            return true;
+        }
+
         if (!(sender instanceof Player player)) {
             sender.sendMessage(MessageUtil.colorize(getMessage("only-player")));
             return true;

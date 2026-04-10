@@ -7,6 +7,7 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
+import ru.truhot.rdang.util.logger.Logger;
 
 import java.util.UUID;
 
@@ -15,7 +16,7 @@ public class HeadUtil {
     public static ItemStack createSkullFromBase64(String base64, String sectionName) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         if (base64 == null || base64.isEmpty()) {
-            System.out.println("[Rdang] отсутствует текстура головы в секции: " + sectionName);
+            Logger.warn("отсутствует текстура головы в секции: " + sectionName);
             return head;
         }
         SkullMeta meta = (SkullMeta) head.getItemMeta();
@@ -28,7 +29,7 @@ public class HeadUtil {
 
     public static ItemStack createSkullFromPrefixedString(String input, String sectionName) {
         if (input == null || input.isEmpty()) {
-            System.out.println("[Rdang] значение материала пусто в секции: " + sectionName);
+            Logger.warn("значение материала пусто в секции: " + sectionName);
             return new ItemStack(Material.PLAYER_HEAD);
         }
 

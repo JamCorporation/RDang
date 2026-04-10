@@ -14,6 +14,7 @@ import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.Metrics;
 import ru.truhot.rdang.util.UndoUtil;
 import ru.truhot.rdang.util.UpdateUtil;
+import ru.truhot.rdang.util.logger.Logger;
 import ru.truhot.rdang.сore.MainCore;
 import ru.truhot.rdang.сore.CoreFactory;
 
@@ -23,6 +24,7 @@ public final class RDang extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        Logger.setup(this);
         new File(getDataFolder(), "schem").mkdirs();
         new File(getDataFolder(), "data").mkdirs();
         new File(getDataFolder(), "backups").mkdirs();
@@ -37,26 +39,24 @@ public final class RDang extends JavaPlugin {
         SchemAction schemAction = new SchemAction(this, configManager);
         DungActions dungActions = new DungActions(schemAction, addShulkers, configManager, undoUtil);
         MenuManager menuManager = new MenuManager(configManager, shulkers, blockStorage, this);
-        Command command = new Command(mainCore, dungActions, this, items, shulkers, blockStorage, configManager, menuManager, undoUtil, mainCore.getShulkerManager());
+        UpdateUtil updateUtil = new UpdateUtil(this);
+        if (getConfig().getBoolean("settings.update-check")) {updateUtil.check();}
+        Command command = new Command(mainCore, dungActions, this, items, shulkers, blockStorage, configManager, menuManager, undoUtil, mainCore.getShulkerManager(), updateUtil);
         getServer().getPluginManager().registerEvents(menuManager, this);
         getCommand("rdang").setExecutor(command);
         getCommand("rdang").setTabCompleter(new RTabCompleter(this));
         getServer().getPluginManager().registerEvents(mainCore, this);
         getServer().getPluginManager().registerEvents(mainCore.getEventHandler(), this);
-        System.out.println("[Rdang] успешно запущен!");
-        UpdateUtil updateUtil = new UpdateUtil(this);
-        if (getConfig().getBoolean("settings.update-check")) {
-            updateUtil.check();
-        }
+        Logger.info("успешно запущен!");
         if (getConfig().getBoolean("settings.metrics")) {
             int pluginId = 28720;
             new Metrics(this, pluginId);
-            System.out.println("[Rdang] bStats успешно инициализирован!");
+            Logger.info("bStats успешно инициализирован!");
         }
     }
 
     @Override
     public void onDisable() {
-        System.out.println("[Rdang] отключен!");
+        Logger.info("отключен!");
     }
 }

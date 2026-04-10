@@ -24,6 +24,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.storage.Storage;
+import ru.truhot.rdang.util.logger.Logger;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.Objects;
@@ -128,13 +130,13 @@ public class UndoUtil {
                                 copy.setCopyingEntities(false);
                                 Operations.complete(copy);
                             } catch (Exception e) {
-                                System.out.println("[RDang] Ошибка при восстановлении слоя " + currentY + " для " + regionName);
+                                Logger.error("Ошибка при восстановлении слоя " + currentY + " для " + regionName);
                             }
                             currentY++;
                         }
                     }.runTaskTimer(plugin, 1L, 1L);
                 } catch (Exception e) {
-                    System.out.println("[RDang] Ошибка чтения бекапа для " + regionName);
+                    Logger.error("Ошибка чтения бекапа для " + regionName);
                 }
             }
         }.runTaskAsynchronously(plugin);

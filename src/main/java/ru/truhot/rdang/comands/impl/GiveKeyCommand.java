@@ -18,6 +18,11 @@ public class GiveKeyCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission("rdang.givekey")) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+            return true;
+        }
+
         if (args.length < 2) {
             sender.sendMessage(MessageUtil.colorize(getMessage("givekey.usage")));
             return true;

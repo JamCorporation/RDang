@@ -34,7 +34,7 @@ public class RTabCompleter implements TabCompleter {
         }
 
         if (args.length == 1) {
-            return Stream.of("additem", "spawn", "givekey", "reload", "schem", "undo", "compass", "list", "admins")
+            return Stream.of("additem", "spawn", "givekey", "reload", "schem", "undo", "compass", "list", "admins", "update")
                     .filter(arg -> arg.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }

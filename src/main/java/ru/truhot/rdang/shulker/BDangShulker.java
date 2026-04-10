@@ -2,6 +2,7 @@ package ru.truhot.rdang.shulker;
 
 import lombok.AllArgsConstructor;
 import org.bukkit.Location;
+import ru.truhot.rdang.util.logger.Logger;
 import ru.truhot.rdang.сore.MainCore;
 
 @AllArgsConstructor
@@ -11,7 +12,7 @@ public class BDangShulker implements ShulkerActions {
 
     @Override
     public void addShulker(Location location) {
-        System.out.println("Добавление шалкера в " + location);
+        Logger.info("Добавление шалкера в " + location);
         bDang.addShulker(location);
     }
 }

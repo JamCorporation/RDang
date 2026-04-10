@@ -10,6 +10,7 @@ import ru.truhot.rdang.menu.MenuManager;
 import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
+import ru.truhot.rdang.util.UpdateUtil;
 import ru.truhot.rdang.сore.MainCore;
 import ru.truhot.rdang.сore.managers.ShulkerManager;
 
@@ -28,11 +29,12 @@ public class Command implements CommandExecutor {
     private final ListCommand listCommand;
     private final UndoUtil undoUtil;
     private final AdminsCommand adminsCommand;
+    private final UpdateCommand updateCommand;
 
     public Command(MainCore mainCore, DungActions dungActions, RDang plugin,
                    Storage items, Storage shulkers, Storage block,
                    ConfigManager configManager, MenuManager menuManager, UndoUtil undoUtil,
-                   ShulkerManager shulkerManager) {
+                   ShulkerManager shulkerManager, UpdateUtil updateUtil) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.undoUtil = undoUtil;
@@ -45,6 +47,7 @@ public class Command implements CommandExecutor {
         this.schemCommand = new SchemCommand(dungActions, plugin, configManager, shulkers, undoUtil);
         this.undoCommand = new UndoCommand(configManager, shulkers, block, plugin);
         this.listCommand = new ListCommand(configManager, menuManager);
+        this.updateCommand = new UpdateCommand(plugin, configManager, updateUtil);
     }
 
     @Override
@@ -80,6 +83,8 @@ public class Command implements CommandExecutor {
                 return listCommand.onCommand(sender, command, label, args);
             case "admins":
                 return adminsCommand.onCommand(sender, command, label, args);
+            case "update":
+                return updateCommand.onCommand(sender, command, label, args);
             default:
                 String unknownMsg = getMessage("unknown-command").replace("{command}", subCommand);
                 sender.sendMessage(MessageUtil.colorize(unknownMsg));

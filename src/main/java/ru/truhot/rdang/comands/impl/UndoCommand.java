@@ -20,13 +20,18 @@ public class UndoCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission("rdang.undo")) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+            return true;
+        }
+
         if (args.length != 2) {
             sender.sendMessage(MessageUtil.colorize(getMessage("undo.usage")));
             return true;
         }
 
         String dungeonId = args[1];
-        String regionName = configManager.getRegion().getString("region.name_format", "dang_{id}")
+        String regionName = configManager.getRegion().getString("region.name_format")
                 .replace("{id}", dungeonId);
         UndoUtil.UndoResult result = undoUtil.performUndo(regionName);
 

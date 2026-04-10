@@ -21,6 +21,11 @@ public class GiveCompassCommand {
             return true;
         }
 
+        if (!sender.hasPermission("rdang.compass")) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+            return true;
+        }
+
         Player target = Bukkit.getPlayer(args[1]);
         if (target == null) {
             sender.sendMessage(MessageUtil.colorize(getMessage("givecompass.noplayer")));

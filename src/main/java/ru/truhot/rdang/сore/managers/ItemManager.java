@@ -13,6 +13,7 @@ import org.bukkit.persistence.PersistentDataType;
 import ru.truhot.rdang.util.HeadUtil;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.TimeUtil;
+import ru.truhot.rdang.util.logger.Logger;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,9 +35,9 @@ public class ItemManager {
         ConfigurationSection keySection = section.getConfigurationSection("key");
         if (keySection != null) {
             this.key = loadItemFromConfig(keySection, "key");
-            if (!keySection.contains("chanceSpawn")) System.out.println("[Rdang] нету chanceSpawn в секции key");
+            if (!keySection.contains("chanceSpawn")) Logger.warn("нету chanceSpawn в секции key");
             this.spawnChance = keySection.getInt("chanceSpawn");
-            if (!keySection.contains("saveChance")) System.out.println("[Rdang] нету saveChance в секции key");
+            if (!keySection.contains("saveChance")) Logger.warn("нету saveChance в секции key");
             this.saveChance = keySection.getInt("saveChance");
         }
 
@@ -45,18 +46,18 @@ public class ItemManager {
             this.compass = loadItemFromConfig(compassSection, "compass");
             this.compassSound = compassSection.getString("sounds");
             if (this.compassSound == null) {
-                System.out.println("[Rdang] нету sounds в секции compass");
+                Logger.warn("нету sounds в секции compass");
             } else {
                 try {
                     Sound.valueOf(this.compassSound.toUpperCase());
                 } catch (IllegalArgumentException e) {
-                    System.out.println("[Rdang] Неверный звук '" + this.compassSound + "' в секции compass");
+                    Logger.error("Неверный звук '" + this.compassSound + "' в секции compass");
                 }
             }
 
             String cooldownStr = compassSection.getString("сooldown");
             if (cooldownStr == null) {
-                System.out.println("[Rdang] нету сooldown в секции compass");
+                Logger.warn("нету сooldown в секции compass");
             } else {
                 this.compassCooldown = TimeUtil.parse(cooldownStr);
             }
@@ -76,13 +77,13 @@ public class ItemManager {
         String materialName = section.getString("material");
         ItemStack item = null;
         if (materialName == null) {
-            System.out.println("[Rdang] нету material в секции " + section.getName());
+            Logger.error("нету material в секции " + section.getName());
         } else if (HeadUtil.isBase64Head(materialName)) {
             item = HeadUtil.createSkullFromPrefixedString(materialName, section.getName());
         } else {
             Material material = getMaterialFromString(materialName);
             if (material == null) {
-                System.out.println("[Rdang] Неверный material '" + materialName + "' в секции " + section.getName());
+                Logger.error("Неверный material '" + materialName + "' в секции " + section.getName());
             } else {
                 item = new ItemStack(material);
             }
@@ -109,7 +110,7 @@ public class ItemManager {
 
     private void applyEnchants(ItemMeta meta, ConfigurationSection section) {
         if (!section.contains("hideEnchantments")) {
-            System.out.println("[Rdang] нету hideEnchantments в секции " + section.getName());
+            Logger.warn("нету hideEnchantments в секции " + section.getName());
         }
         if (meta == null) return;
         if (!section.getBoolean("hideEnchantments")) {
@@ -122,18 +123,22 @@ public class ItemManager {
     private void applyItemMeta(ItemMeta meta, ConfigurationSection section) {
         String name = section.getString("name");
         if (name == null) {
-            System.out.println("[Rdang] нету name в секции " + section.getName());
+            Logger.warn("нету name в секции " + section.getName());
         } else if (meta != null) {
             meta.setDisplayName(MessageUtil.colorize(name));
         }
 
         List<String> lore = section.getStringList("lore");
         if (lore.isEmpty()) {
-            System.out.println("[Rdang] нету lore в секции " + section.getName());
+            Logger.warn("нету lore в секции " + section.getName());
         } else if (meta != null) {
             meta.setLore(lore.stream()
                     .map(MessageUtil::colorize)
                     .collect(Collectors.toList()));
+            if (section.contains("custom_model_data")) {
+                int modelData = section.getInt("custom_model_data");
+                meta.setCustomModelData(modelData);
+            }
         }
     }
 

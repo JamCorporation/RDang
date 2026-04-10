@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+import ru.truhot.rdang.util.logger.Logger;
 import ru.truhot.rdang.сore.managers.*;
 
 import java.io.File;
@@ -61,7 +62,7 @@ public class ConfigManager {
 
     public void reloadAll() {
         loadAllConfigs();
-        plugin.getLogger().info("Все конфигурации перезагружены!");
+        Logger.info("Все конфигурации перезагружены!");
     }
 
 
@@ -70,7 +71,7 @@ public class ConfigManager {
         if (!file.exists()) {
             if (saveDefault) {
                 plugin.saveResource(fileName, false);
-                plugin.getLogger().info(fileName + " успешно загружен");
+                Logger.info(fileName + " успешно загружен");
             }
         }
         return YamlConfiguration.loadConfiguration(file);

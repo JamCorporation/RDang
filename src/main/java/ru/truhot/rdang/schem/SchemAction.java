@@ -17,6 +17,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.config.ConfigManager;
+import ru.truhot.rdang.util.logger.Logger;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -65,13 +67,14 @@ public class SchemAction {
                                     copy.setSourceMask(com.sk89q.worldedit.function.mask.Masks.negate(new com.sk89q.worldedit.function.mask.BlockTypeMask(clipboard, com.sk89q.worldedit.world.block.BlockTypes.AIR)));
                                 }
                                 Operations.complete(copy);
-                            } catch (Exception ignored) {System.out.println("[RDang] Не удалось вставить схему: " + fileName);
+                            } catch (Exception ignored) {
+                                Logger.error("Не удалось вставить схему: " + fileName);
                             }
                             currentY++;
                         }
                     }.runTaskTimer(plugin, 1L, 1L);
                 } catch (Exception ignored) {
-                    System.out.println("[RDang] Не удалось вставить схему: " + fileName);
+                    Logger.error("Не удалось вставить схему: " + fileName);
                 }
             }
         }.runTaskAsynchronously(plugin);
@@ -95,7 +98,7 @@ public class SchemAction {
                 writer.write(clipboard);
             }
         } catch (Exception e) {
-            System.out.println("[RDang] Ошибка при создании бекапа для региона: " + regionName);
+            Logger.error("Ошибка при создании бекапа для региона: " + regionName);
         }
     }
 }

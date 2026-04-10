@@ -31,10 +31,16 @@ public class SchemCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission("rdang.schem")) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+            return true;
+        }
+
         if (!(sender instanceof Player player)) {
             sender.sendMessage(MessageUtil.colorize(getMessage("only-player")));
             return true;
         }
+
         if (args.length != 2) {
             player.sendMessage(MessageUtil.colorize(getMessage("schem.usage")));
             return true;

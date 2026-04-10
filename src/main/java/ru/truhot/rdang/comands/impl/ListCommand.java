@@ -20,6 +20,11 @@ public class ListCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission("rdang.list")) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+            return true;
+        }
+
         if (!(sender instanceof Player)) {
             sender.sendMessage(MessageUtil.colorize(getMessage("only-player")));
             return true;
