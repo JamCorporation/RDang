@@ -40,15 +40,29 @@ public class RTabCompleter implements TabCompleter {
         }
         String subCommand = args[0].toLowerCase();
         if (args.length == 2 && subCommand.equals("schem")) {
-            File schemFolder = new File(plugin.getDataFolder(), "schem");
             List<String> schemFiles = new ArrayList<>();
-            if (schemFolder.exists() && schemFolder.isDirectory()) {
-                File[] files = schemFolder.listFiles((dir, name) ->
-                        name.toLowerCase().endsWith(".schem") || name.toLowerCase().endsWith(".schematic"));
-                if (files != null) {
-                    for (File file : files) schemFiles.add(file.getName());
+            List<File> foldersToScan = new ArrayList<>();
+
+            foldersToScan.add(new File(plugin.getDataFolder(), "schem"));
+
+            org.bukkit.plugin.Plugin fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
+            if (fawe != null) foldersToScan.add(new File(fawe.getDataFolder(), "schematics"));
+            org.bukkit.plugin.Plugin we = Bukkit.getPluginManager().getPlugin("WorldEdit");
+            if (we != null) foldersToScan.add(new File(we.getDataFolder(), "schematics"));
+            for (File folder : foldersToScan) {
+                if (folder.exists() && folder.isDirectory()) {
+                    File[] files = folder.listFiles((dir, name) ->
+                            name.toLowerCase().endsWith(".schem") || name.toLowerCase().endsWith(".schematic"));
+                    if (files != null) {
+                        for (File file : files) {
+                            if (!schemFiles.contains(file.getName())) {
+                                schemFiles.add(file.getName());
+                            }
+                        }
+                    }
                 }
             }
+
             return schemFiles.stream()
                     .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
                     .collect(Collectors.toList());

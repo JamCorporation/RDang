@@ -1,6 +1,7 @@
 package ru.truhot.rdang.comands.impl;
 
 import com.sk89q.worldedit.math.BlockVector3;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -45,45 +46,80 @@ public class SchemCommand implements CommandExecutor {
             player.sendMessage(MessageUtil.colorize(getMessage("schem.usage")));
             return true;
         }
+
         String schemName = args[1];
         File schemFile = findFile(schemName);
+
         if (schemFile == null || !schemFile.exists()) {
             player.sendMessage(MessageUtil.colorize(getMessage("schem.not-found").replace("{schem}", schemName)));
             return true;
         }
+
         String fileNameOnly = schemFile.getName();
         if (!isRegistered(fileNameOnly)) {
             player.sendMessage(MessageUtil.colorize(getMessage("schem.not-registered").replace("{schem}", fileNameOnly)));
             return true;
         }
+
         Location spawnLocation = player.getLocation().add(player.getLocation().getDirection().multiply(3));
         spawnLocation.setY(player.getWorld().getHighestBlockYAt(spawnLocation.getBlockX(), spawnLocation.getBlockZ()));
+
         try {
             int freeId = dungActions.getFreeId();
             String regionName = configManager.getRegion().getString("region.name_format", "dang_{id}").replace("{id}", String.valueOf(freeId));
+
             dungActions.getSchemAction().createBackup(spawnLocation, regionName);
             dungActions.getSchemAction().spawnSchem(spawnLocation, fileNameOnly);
+
             int rx = configManager.getRegion().getInt("region.size.x", 12);
             int rz = configManager.getRegion().getInt("region.size.z", 12);
             int minY = configManager.getRegion().getInt("region.height.min", -10);
-            int maxY = configManager.getRegion().getInt("region.height.max", 10);
-            dungActions.getAddShulkers().addShulkersInRegion(spawnLocation, rx, rz, minY, maxY);
+
+            dungActions.getAddShulkers().addShulkersInRegion(spawnLocation, rx, rz, minY, configManager.getRegion().getInt("region.height.max", 10));
             dungActions.buildRegion(spawnLocation.getBlockX(), spawnLocation.getBlockZ(), spawnLocation.getWorld(), freeId);
             undoUtil.saveDungeonData(regionName, spawnLocation.getWorld(), BlockVector3.at(spawnLocation.getBlockX() - rx, minY, spawnLocation.getBlockZ() - rz));
-            player.sendMessage(MessageUtil.colorize(getMessage("schem.success").replace("{schem}", fileNameOnly).replace("{x}", String.valueOf(spawnLocation.getBlockX())).replace("{y}", String.valueOf(spawnLocation.getBlockY())).replace("{z}", String.valueOf(spawnLocation.getBlockZ()))));
+
+            player.sendMessage(MessageUtil.colorize(getMessage("schem.success")
+                    .replace("{schem}", fileNameOnly)
+                    .replace("{x}", String.valueOf(spawnLocation.getBlockX()))
+                    .replace("{y}", String.valueOf(spawnLocation.getBlockY()))
+                    .replace("{z}", String.valueOf(spawnLocation.getBlockZ()))));
             return true;
         } catch (Exception e) {
             player.sendMessage(MessageUtil.colorize(getMessage("schem.error").replace("{schem}", fileNameOnly)));
-            e.printStackTrace();
             return true;
         }
     }
 
     private File findFile(String name) {
-        File folder = new File(plugin.getDataFolder(), "schem");
+        File internalFolder = new File(plugin.getDataFolder(), "schem");
+        File file = checkFolder(internalFolder, name);
+        if (file != null && file.exists()) return file;
+
+        var fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
+        if (fawe != null) {
+            file = checkFolder(new File(fawe.getDataFolder(), "schematics"), name);
+            if (file != null && file.exists()) return file;
+        }
+
+        var we = Bukkit.getPluginManager().getPlugin("WorldEdit");
+        if (we != null) {
+            file = checkFolder(new File(we.getDataFolder(), "schematics"), name);
+            if (file != null && file.exists()) return file;
+        }
+
+        return null;
+    }
+
+    private File checkFolder(File folder, String name) {
+        if (!folder.exists()) return null;
         if (name.toLowerCase().endsWith(".schem") || name.toLowerCase().endsWith(".schematic")) return new File(folder, name);
+
         File f1 = new File(folder, name + ".schem");
-        return f1.exists() ? f1 : new File(folder, name + ".schematic");
+        if (f1.exists()) return f1;
+
+        File f2 = new File(folder, name + ".schematic");
+        return f2.exists() ? f2 : null;
     }
 
     private boolean isRegistered(String fileName) {

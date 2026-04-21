@@ -4,13 +4,10 @@ import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
+import com.sk89q.worldedit.extent.clipboard.io.*;
 import com.sk89q.worldedit.function.operation.ForwardExtentCopy;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
@@ -63,15 +60,18 @@ public class UndoUtil {
         section.set("x", minPoint.getX());
         section.set("y", minPoint.getY());
         section.set("z", minPoint.getZ());
-        blockStorage.save();
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                blockStorage.save();
+            }
+        }.runTaskAsynchronously(plugin);
     }
 
     public UndoResult performUndo(String regionName) {
         String path = "history." + regionName;
         ConfigurationSection data = blockStorage.getConfig().getConfigurationSection(path);
-        if (data == null) {
-            return new UndoResult(0, "Неизвестно", false);
-        }
+        if (data == null) return new UndoResult(0, "Неизвестно", false);
         String worldName = data.getString("world");
         World world = Bukkit.getWorld(Objects.requireNonNull(worldName));
         if (world == null) return new UndoResult(0, worldName, false);
@@ -85,15 +85,13 @@ public class UndoUtil {
             ProtectedRegion region = manager.getRegion(regionName);
             removedCount = removeShulkersInRegion(getRegionCenter(region, world), world);
             manager.removeRegion(regionName);
-            if (removedCount > 0) {
-                shulkers.save();
-            }
+            if (removedCount > 0) shulkers.save();
         }
-        restoreLandscapeLayered(regionName, world, minPoint);
+        restoreLandscape(regionName, world, minPoint);
         return new UndoResult(removedCount, worldName, true);
     }
 
-    private void restoreLandscapeLayered(String regionName, World world, BlockVector3 minPoint) {
+    private void restoreLandscape(String regionName, World world, BlockVector3 minPoint) {
         File backupFile = new File(plugin.getDataFolder(), "backups/" + regionName + ".schem");
         if (!backupFile.exists()) return;
         ClipboardFormat format = ClipboardFormats.findByFile(backupFile);
@@ -104,39 +102,25 @@ public class UndoUtil {
                 try (FileInputStream fis = new FileInputStream(backupFile);
                      ClipboardReader reader = format.getReader(fis)) {
                     Clipboard clipboard = reader.read();
-                    BlockVector3 dimensions = clipboard.getDimensions();
-                    BlockVector3 clipMin = clipboard.getMinimumPoint();
-                    BlockVector3 offset = minPoint.subtract(clipMin);
+                    BlockVector3 offset = minPoint.subtract(clipboard.getMinimumPoint());
                     new BukkitRunnable() {
-                        int currentY = 0;
                         @Override
                         public void run() {
-                            if (currentY >= dimensions.getY()) {
-                                if (backupFile.exists()) backupFile.delete();
-                                this.cancel();
-                                return;
-                            }
                             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
-                                BlockVector3 layerMin = clipMin.add(0, currentY, 0);
-                                BlockVector3 layerMax = BlockVector3.at(
-                                        clipboard.getMaximumPoint().getX(),
-                                        clipMin.getY() + currentY,
-                                        clipboard.getMaximumPoint().getZ()
-                                );
-                                CuboidRegion layerRegion = new CuboidRegion(layerMin, layerMax);
                                 ForwardExtentCopy copy = new ForwardExtentCopy(
-                                        clipboard, layerRegion, editSession, layerMin.add(offset)
+                                        clipboard, clipboard.getRegion(), editSession, clipboard.getMinimumPoint().add(offset)
                                 );
                                 copy.setCopyingEntities(false);
                                 Operations.complete(copy);
                             } catch (Exception e) {
-                                Logger.error("Ошибка при восстановлении слоя " + currentY + " для " + regionName);
+                                Logger.error("Ошибка реставрации: " + regionName);
+                            } finally {
+                                if (backupFile.exists()) backupFile.delete();
                             }
-                            currentY++;
                         }
-                    }.runTaskTimer(plugin, 1L, 1L);
+                    }.runTask(plugin);
                 } catch (Exception e) {
-                    Logger.error("Ошибка чтения бекапа для " + regionName);
+                    Logger.error("Ошибка чтения бекапа: " + regionName);
                 }
             }
         }.runTaskAsynchronously(plugin);
@@ -146,6 +130,7 @@ public class UndoUtil {
         String timeStr = configManager.getAuto().getString("auto.time");
         long seconds = TimeUtil.parse(timeStr);
         String rawMsg = configManager.getMessages().getString("messages.actionbar-timer");
+
         new BukkitRunnable() {
             private long timeLeft = seconds;
             @Override

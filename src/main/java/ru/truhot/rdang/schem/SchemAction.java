@@ -8,9 +8,8 @@ import com.sk89q.worldedit.extent.clipboard.io.*;
 import com.sk89q.worldedit.function.operation.ForwardExtentCopy;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.regions.CuboidRegion;
-import com.sk89q.worldedit.session.ClipboardHolder;
 import lombok.AllArgsConstructor;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -30,17 +29,29 @@ public class SchemAction {
 
     public void spawnSchem(@NotNull Location location, @NotNull String fileName) {
         File schemFile = new File(plugin.getDataFolder() + "/schem/" + fileName);
-        ClipboardFormat format = ClipboardFormats.findByFile(schemFile);
+        if (!schemFile.exists()) {
+            File faweFolder = new File(Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit").getDataFolder(), "schematics");
+            File alternativeFile = new File(faweFolder, fileName);
+            if (alternativeFile.exists()) {
+                schemFile = alternativeFile;
+            } else {
+                File weFolder = new File(Bukkit.getPluginManager().getPlugin("WorldEdit").getDataFolder(), "schematics");
+                alternativeFile = new File(weFolder, fileName);
+                if (alternativeFile.exists()) {
+                    schemFile = alternativeFile;
+                }
+            }
+        }
+        if (!schemFile.exists()) return;
+        final File finalFile = schemFile;
+        ClipboardFormat format = ClipboardFormats.findByFile(finalFile);
         if (format == null) return;
         new BukkitRunnable() {
             @Override
             public void run() {
-                try (FileInputStream fis = new FileInputStream(schemFile);
+                try (FileInputStream fis = new FileInputStream(finalFile);
                      ClipboardReader reader = format.getReader(fis)) {
                     Clipboard clipboard = reader.read();
-                    BlockVector3 dimensions = clipboard.getDimensions();
-                    BlockVector3 clipMin = clipboard.getMinimumPoint();
-                    BlockVector3 clipMax = clipboard.getMaximumPoint();
                     boolean ignoreAir = configManager.getSchem().getBoolean("ignore-air-blocks");
                     ConfigurationSection offsetSection = configManager.getSchem().getConfigurationSection("schem-offset");
                     double ox = offsetSection != null ? offsetSection.getDouble("x") : 0;
@@ -50,31 +61,27 @@ public class SchemAction {
                     BlockVector3 targetOrigin = BlockVector3.at(targetLoc.getX(), targetLoc.getY(), targetLoc.getZ());
                     BlockVector3 offset = targetOrigin.subtract(clipboard.getOrigin());
                     new BukkitRunnable() {
-                        int currentY = 0;
                         @Override
                         public void run() {
-                            if (currentY >= dimensions.getY()) {
-                                this.cancel();
-                                return;
-                            }
                             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(targetLoc.getWorld()))) {
-                                BlockVector3 layerMin = clipMin.add(0, currentY, 0);
-                                BlockVector3 layerMax = BlockVector3.at(clipMax.getX(), clipMin.getY() + currentY, clipMax.getZ());
-                                CuboidRegion layerRegion = new CuboidRegion(layerMin, layerMax);
-                                ForwardExtentCopy copy = new ForwardExtentCopy(clipboard, layerRegion, editSession, layerMin.add(offset));
+                                ForwardExtentCopy copy = new ForwardExtentCopy(
+                                        clipboard, clipboard.getRegion(), editSession, clipboard.getMinimumPoint().add(offset)
+                                );
                                 copy.setCopyingEntities(true);
+
                                 if (ignoreAir) {
-                                    copy.setSourceMask(com.sk89q.worldedit.function.mask.Masks.negate(new com.sk89q.worldedit.function.mask.BlockTypeMask(clipboard, com.sk89q.worldedit.world.block.BlockTypes.AIR)));
+                                    copy.setSourceMask(com.sk89q.worldedit.function.mask.Masks.negate(
+                                            new com.sk89q.worldedit.function.mask.BlockTypeMask(clipboard, com.sk89q.worldedit.world.block.BlockTypes.AIR)
+                                    ));
                                 }
                                 Operations.complete(copy);
-                            } catch (Exception ignored) {
+                            } catch (Exception e) {
                                 Logger.error("Не удалось вставить схему: " + fileName);
                             }
-                            currentY++;
                         }
-                    }.runTaskTimer(plugin, 1L, 1L);
-                } catch (Exception ignored) {
-                    Logger.error("Не удалось вставить схему: " + fileName);
+                    }.runTask(plugin);
+                } catch (Exception e) {
+                    Logger.error("Ошибка при чтении схемы: " + fileName);
                 }
             }
         }.runTaskAsynchronously(plugin);
@@ -98,7 +105,7 @@ public class SchemAction {
                 writer.write(clipboard);
             }
         } catch (Exception e) {
-            Logger.error("Ошибка при создании бекапа для региона: " + regionName);
+            Logger.error("Ошибка бекапа: " + regionName);
         }
     }
 }
