@@ -27,6 +27,7 @@ import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.LootGenerateEvent;
 import org.bukkit.inventory.InventoryHolder;
@@ -35,6 +36,7 @@ import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
+import ru.truhot.rdang.util.TimeUtil;
 
 public class EventManager implements Listener {
     private final Storage shulkers;
@@ -44,83 +46,30 @@ public class EventManager implements Listener {
     private final Random random = new Random();
     private final UndoUtil undoUtil;
 
+    public EventManager(Storage shulkers, ConfigManager configManager, ShulkerManager shulkerManager, ItemChecker itemChecker, UndoUtil undoUtil) {
+        this.shulkers = shulkers;
+        this.configManager = configManager;
+        this.shulkerManager = shulkerManager;
+        this.itemChecker = itemChecker;
+        this.undoUtil = undoUtil;
+    }
+
     @EventHandler
-    public void onClick(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {return;}
+    public void onInteract(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         ConfigurationSection locsSection = this.shulkers.getConfig().getConfigurationSection("locs");
         if (locsSection != null && event.getClickedBlock() != null) {
             if (this.shulkerManager.isShulker(event.getClickedBlock())) {
-                for(String itemId : locsSection.getKeys(false)) {
+                for (String itemId : locsSection.getKeys(false)) {
                     ConfigurationSection shulker = locsSection.getConfigurationSection(itemId);
                     Location shulkerLocation = shulker.getLocation("location");
-                    if (event.getClickedBlock().getLocation().getBlockX() == shulkerLocation.getBlockX() &&
-                            event.getClickedBlock().getLocation().getBlockY() == shulkerLocation.getBlockY() &&
-                            event.getClickedBlock().getLocation().getBlockZ() == shulkerLocation.getBlockZ() &&
-                            event.getClickedBlock().getLocation().getWorld().getName().equals(shulkerLocation.getWorld().getName()) &&
-                            !shulker.getBoolean("opened")) {
+                    if (isSameLocation(event.getClickedBlock().getLocation(), shulkerLocation) && !shulker.getBoolean("opened")) {
                         ItemStack itemInHand = event.getPlayer().getItemInHand();
-                        if (itemInHand != null && itemInHand.getType() != Material.AIR && itemInHand.getItemMeta() != null && this.itemChecker.isValidKey(itemInHand)) {
-                            String pTypeStr = this.configManager.getShulker().getString("particles.open.type", "TOTEM");
-                            Particle pType;
-                            try { pType = Particle.valueOf(pTypeStr.toUpperCase()); } catch (Exception e) { pType = Particle.TOTEM; }
-                            int pCount = this.configManager.getShulker().getInt("particles.open.count", 20);
-                            double pOx = this.configManager.getShulker().getDouble("particles.open.offsetX", 1.5);
-                            double pOy = this.configManager.getShulker().getDouble("particles.open.offsetY", 1.5);
-                            double pOz = this.configManager.getShulker().getDouble("particles.open.offsetZ", 1.5);
-                            double pExtra = this.configManager.getShulker().getDouble("particles.open.extra", 0.1);
-                            shulkerLocation.getWorld().spawnParticle(pType, shulkerLocation.clone().add(0.5, 1.0, 0.5), pCount, pOx, pOy, pOz, pExtra);
-                            String sTypeStr = this.configManager.getShulker().getString("sounds.open.type", "UI_TOAST_CHALLENGE_COMPLETE");
-                            try {
-                                Sound sType = Sound.valueOf(sTypeStr.toUpperCase());
-                                float sVol = (float)this.configManager.getShulker().getInt("sounds.open.volume", 50) / 100.0F;
-                                float sPitch = (float)this.configManager.getShulker().getDouble("sounds.open.pitch", 1.0);
-                                shulkerLocation.getWorld().playSound(shulkerLocation, sType, sVol, sPitch);
-                            } catch (Exception e) {
-                                shulkerLocation.getWorld().playSound(shulkerLocation, Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.5F, 1.0F);
-                            }
-                            shulker.set("opened", true);
-                            this.shulkers.save();
-                            this.checkAndScheduleCleanup(shulkerLocation);
-                            for(Player player : Bukkit.getOnlinePlayers()) {
-                                for(String s : this.configManager.getMessageManager().getFormattedOpenDungMessages(event.getPlayer().getName())) {
-                                    player.sendMessage(s);
-                                }
-                            }
-                            int saveChance = this.configManager.getItemManager().getSaveChance();
-                            if (Math.random() * 100.0 < (double)saveChance) {
-                                event.getPlayer().sendMessage(this.configManager.getMessageManager().getSaveKeyMessage());
-                            } else {
-                                if (itemInHand.getAmount() > 1) {
-                                    itemInHand.setAmount(itemInHand.getAmount() - 1);
-                                } else {
-                                    event.getPlayer().setItemInHand(new ItemStack(Material.AIR));
-                                }
-                            }
+                        if (itemInHand != null && itemInHand.getType() != Material.AIR && this.itemChecker.isValidKey(itemInHand)) {
+                            ShulkerOpen(event, shulker, shulkerLocation, itemInHand);
                             return;
                         }
-                        event.setCancelled(true);
-                        String pTypeStrL = this.configManager.getShulker().getString("particles.locked.type", "TOTEM");
-                        Particle pTypeL;
-                        try { pTypeL = Particle.valueOf(pTypeStrL.toUpperCase()); } catch (Exception e) { pTypeL = Particle.TOTEM; }
-                        int pCountL = this.configManager.getShulker().getInt("particles.locked.count", 20);
-                        double pOxL = this.configManager.getShulker().getDouble("particles.locked.offsetX", 1.5);
-                        double pOyL = this.configManager.getShulker().getDouble("particles.locked.offsetY", 1.5);
-                        double pOzL = this.configManager.getShulker().getDouble("particles.locked.offsetZ", 1.5);
-                        double pExtraL = this.configManager.getShulker().getDouble("particles.locked.extra", 0.1);
-                        shulkerLocation.getWorld().spawnParticle(pTypeL, shulkerLocation.clone().add(0.5, 1.0, 0.5), pCountL, pOxL, pOyL, pOzL, pExtraL);
-                        String sTypeStrL = this.configManager.getShulker().getString("sounds.locked.type", "BLOCK_BARREL_CLOSE");
-                        try {
-                            Sound sTypeL = Sound.valueOf(sTypeStrL.toUpperCase());
-                            float sVolL = (float)this.configManager.getShulker().getInt("sounds.locked.volume", 50) / 100.0F;
-                            float sPitchL = (float)this.configManager.getShulker().getDouble("sounds.locked.pitch", 1.0);
-                            event.getPlayer().playSound(event.getPlayer().getLocation(), sTypeL, sVolL, sPitchL);
-                            shulkerLocation.getWorld().playSound(shulkerLocation, sTypeL, sVolL * 0.5F, sPitchL * 0.8F);
-                        } catch (Exception e) {
-                            event.getPlayer().playSound(event.getPlayer().getLocation(), Sound.BLOCK_BARREL_CLOSE, 0.5F, 1.0F);
-                        }
-                        for(String s : this.configManager.getMessageManager().getClosedDungMessages()) {
-                            event.getPlayer().sendMessage(s);
-                        }
+                        ShulkerLocked(event, shulkerLocation);
                         return;
                     }
                 }
@@ -128,237 +77,192 @@ public class EventManager implements Listener {
         }
     }
 
+    private void ShulkerOpen(PlayerInteractEvent event, ConfigurationSection shulker, Location loc, ItemStack item) {
+        spawnEffect(loc, "open");
+        playEffectSound(loc, "open");
+        shulker.set("opened", true);
+        this.shulkers.save();
+        this.checkCleanup(loc);
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            this.configManager.getMessageManager().getFormattedOpenDungMessages(event.getPlayer().getName()).forEach(p::sendMessage);
+        }
+        int chance = this.configManager.getItemManager().getSaveChance();
+        if (Math.random() * 100.0 < chance) {
+            event.getPlayer().sendMessage(this.configManager.getMessageManager().getSaveKeyMessage());
+        } else {
+            if (item.getAmount() > 1) item.setAmount(item.getAmount() - 1);
+            else event.getPlayer().setItemInHand(new ItemStack(Material.AIR));
+        }
+    }
+
+    private void ShulkerLocked(PlayerInteractEvent event, Location loc) {
+        event.setCancelled(true);
+        spawnEffect(loc, "locked");
+        playEffectSound(loc, "locked");
+        this.configManager.getMessageManager().getClosedDungMessages().forEach(event.getPlayer()::sendMessage);
+    }
+
     @EventHandler
     public void onLoot(LootGenerateEvent e) {
-        int result = this.random.nextInt(100);
-        if (result < this.configManager.getItemManager().getSpawnChance()) {
+        if (this.random.nextInt(100) < this.configManager.getItemManager().getSpawnChance()) {
             e.getLoot().add(this.configManager.getItemManager().getKey());
-
             if (e.getEntity() instanceof Player player) {
                 String rawMsg = this.configManager.getMessages().getString("messages.key-found");
-                String finalMsg = MessageUtil.colorize(rawMsg.replace("{player}", player.getName()));
-                Bukkit.broadcastMessage(finalMsg);
+                Bukkit.broadcastMessage(MessageUtil.colorize(rawMsg.replace("{player}", player.getName())));
             }
         }
-
     }
 
-    @EventHandler(
-            priority = EventPriority.HIGH,
-            ignoreCancelled = true
-    )
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent e) {
-        this.pistonUtil(e.getBlocks(), e);
+        processPiston(e.getBlocks(), e);
     }
 
-    @EventHandler(
-            priority = EventPriority.HIGH,
-            ignoreCancelled = true
-    )
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonRetractEvent e) {
-        this.pistonUtil(e.getBlocks(), e);
+        processPiston(e.getBlocks(), e);
     }
 
-    private void pistonUtil(List<Block> pushedBlocks, BlockPistonEvent e) {
-        for(Block b : pushedBlocks) {
+    private void processPiston(List<Block> blocks, BlockPistonEvent e) {
+        for (Block b : blocks) {
             if (this.shulkerManager.isShulker(b)) {
                 e.setCancelled(true);
+                break;
             }
         }
-
     }
 
     @EventHandler
-    public void onPrepareCraft(org.bukkit.event.inventory.PrepareItemCraftEvent event) {
+    public void onCraft(PrepareItemCraftEvent event) {
         if (event.getInventory().getMatrix() == null) return;
         for (ItemStack item : event.getInventory().getMatrix()) {
-            if (item == null || item.getType() == Material.AIR) continue;
-            if (this.itemChecker.isKeyItem(item) || this.itemChecker.isCompassItem(item)) {
+            if (item != null && (this.itemChecker.isKeyItem(item) || this.itemChecker.isCompassItem(item))) {
                 event.getInventory().setResult(new ItemStack(Material.AIR));
                 break;
             }
         }
     }
 
-
     @EventHandler
-    public void on(BlockBreakEvent e) {
+    public void onBreak(BlockBreakEvent e) {
         if (this.shulkerManager.isShulker(e.getBlock())) {
-            ConfigurationSection locsSection = this.shulkers.getConfig().getConfigurationSection("locs");
-            if (locsSection == null) {
-                return;
-            }
-
-            for(String itemId : locsSection.getKeys(false)) {
-                ConfigurationSection shulker = locsSection.getConfigurationSection(itemId);
-                Location shulkerLocation = shulker.getLocation("location");
-                if (e.getBlock().getLocation().getBlockX() == shulkerLocation.getBlockX() && e.getBlock().getLocation().getBlockY() == shulkerLocation.getBlockY() && e.getBlock().getLocation().getBlockZ() == shulkerLocation.getBlockZ() && e.getBlock().getLocation().getWorld().getName().equals(shulkerLocation.getWorld().getName())) {
+            ConfigurationSection locs = this.shulkers.getConfig().getConfigurationSection("locs");
+            if (locs == null) return;
+            for (String id : locs.getKeys(false)) {
+                if (isSameLocation(e.getBlock().getLocation(), locs.getConfigurationSection(id).getLocation("location"))) {
                     e.setCancelled(true);
                     return;
                 }
             }
         }
-
     }
 
-    @EventHandler(
-            priority = EventPriority.HIGH,
-            ignoreCancelled = true
-    )
-    public void onKeyUsage(PlayerInteractEvent event) {
-        ItemStack itemInHand = event.getItem();
-        if (itemInHand != null && itemInHand.getType() != Material.AIR) {
-            if (this.itemChecker.isKeyItem(itemInHand)) {
-                ;
-            }
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onKey(PlayerInteractEvent event) {
+        ItemStack item = event.getItem();
+        if (item != null && this.itemChecker.isKeyItem(item)) {
         }
     }
 
-    @EventHandler(
-            priority = EventPriority.HIGH
-    )
-
-    public void onCompassUse(PlayerInteractEvent event) {
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onCompass(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-
         ItemStack item = event.getItem();
-        if (item == null || item.getType() == Material.AIR) return;
-        if (!this.itemChecker.isCompassItem(item)) return;
-
+        if (item == null || !this.itemChecker.isCompassItem(item)) return;
         event.setCancelled(true);
         Player player = event.getPlayer();
-
         if (player.hasCooldown(item.getType())) {
-            String cooldownMsg = this.configManager.getMessages().getString("messages.givecompass.cooldown");
-            if (cooldownMsg != null) {
-                int remainingTicks = player.getCooldown(item.getType());
-                long remainingSeconds = remainingTicks / 20;
-                String formattedTime = ru.truhot.rdang.util.TimeUtil.format(remainingSeconds);
-                player.sendMessage(MessageUtil.colorize(cooldownMsg.replace("{time}", formattedTime)));
+            String msg = this.configManager.getMessages().getString("messages.givecompass.cooldown");
+            if (msg != null) {
+                player.sendMessage(MessageUtil.colorize(msg.replace("{time}", TimeUtil.format(player.getCooldown(item.getType()) / 20))));
             }
             return;
         }
-
-        Location randomDangLocation = this.getRandomDangLocation();
-        if (randomDangLocation == null) {
-            String noDangsMsg = this.configManager.getMessages().getString("messages.givecompass.no_dangs");
-            if (noDangsMsg != null) player.sendMessage(MessageUtil.colorize(noDangsMsg));
+        Location loc = this.getRandomLocation();
+        if (loc == null) {
+            String noDangs = this.configManager.getMessages().getString("messages.givecompass.no_dangs");
+            if (noDangs != null) player.sendMessage(MessageUtil.colorize(noDangs));
             return;
         }
-
-        String showingMsg = this.configManager.getMessages().getString("messages.givecompass.showing_location");
-        if (showingMsg != null) {
-            showingMsg = showingMsg.replace("{x}", String.valueOf(randomDangLocation.getBlockX()))
-                    .replace("{y}", String.valueOf(randomDangLocation.getBlockY()))
-                    .replace("{z}", String.valueOf(randomDangLocation.getBlockZ()));
-            player.sendMessage(MessageUtil.colorize(showingMsg));
+        String showMsg = this.configManager.getMessages().getString("messages.givecompass.showing_location");
+        if (showMsg != null) {
+            player.sendMessage(MessageUtil.colorize(showMsg.replace("{x}", String.valueOf(loc.getBlockX())).replace("{y}", String.valueOf(loc.getBlockY())).replace("{z}", String.valueOf(loc.getBlockZ()))));
         }
-
-        Sound sound = this.configManager.getItemManager().getCompassSoundEnum();
-        if (sound != null) {
-            player.playSound(player.getLocation(), sound, 1.0F, 1.0F);
-        }
-
-        long cooldownTicks = this.configManager.getItemManager().getCompassCooldown() * 20L;
-        if (cooldownTicks > 0) {
-            player.setCooldown(item.getType(), (int) cooldownTicks);
-        }
-
-        if (item.getAmount() > 1) {
-            item.setAmount(item.getAmount() - 1);
-        } else {
-            player.getInventory().setItem(event.getHand(), null);
-        }
+        Sound s = this.configManager.getItemManager().getCompassSoundEnum();
+        if (s != null) player.playSound(player.getLocation(), s, 1.0F, 1.0F);
+        player.setCooldown(item.getType(), Math.toIntExact(this.configManager.getItemManager().getCompassCooldown() * 20));
+        if (item.getAmount() > 1) item.setAmount(item.getAmount() - 1);
+        else player.getInventory().setItem(event.getHand(), null);
     }
 
     @EventHandler
-    public void onInventoryClose(InventoryCloseEvent event) {
-        InventoryHolder holder = event.getInventory().getHolder();
-        if (holder instanceof ShulkerBox shulker) {
+    public void onClose(InventoryCloseEvent event) {
+        if (event.getInventory().getHolder() instanceof ShulkerBox shulker) {
             if (this.shulkerManager.isShulker(shulker.getBlock())) {
-                this.checkAndScheduleCleanup(shulker.getLocation());
+                this.checkCleanup(shulker.getLocation());
             }
         }
     }
 
-    private void checkAndScheduleCleanup(Location loc) {
-        if (this.configManager.getAuto().getBoolean("auto.enabled")) {
-            RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-            RegionManager manager = container.get(BukkitAdapter.adapt(loc.getWorld()));
-
-            if (manager != null) {
-                ApplicableRegionSet set = manager.getApplicableRegions(BukkitAdapter.asBlockVector(loc));
-                String prefix = this.configManager.getRegion().getString("region.name_format", "dang_").replace("{id}", "");
-
-                set.getRegions().stream()
-                        .filter(r -> r.getId().startsWith(prefix))
-                        .findFirst()
-                        .ifPresent(region -> {
-                            ConfigurationSection locs = this.shulkers.getConfig().getConfigurationSection("locs");
-                            if (locs != null) {
-                                boolean anyLootLeft = locs.getKeys(false).stream().anyMatch(key -> {
-                                    ConfigurationSection s = locs.getConfigurationSection(key);
-                                    Location sLoc = s.getLocation("location");
-
-                                    if (sLoc == null || !sLoc.getWorld().getName().equals(loc.getWorld().getName())
-                                            || !region.contains(BukkitAdapter.asBlockVector(sLoc))) {
-                                        return false;
-                                    }
-
-                                    if (!s.getBoolean("opened")) return true;
-                                    Block block = sLoc.getBlock();
-                                    if (block.getState() instanceof ShulkerBox shulkerBox) {
-                                        for (ItemStack item : shulkerBox.getInventory().getContents()) {
-                                            if (item != null && item.getType() != Material.AIR) {
-                                                return true;
-                                            }
-                                        }
-                                    }
-                                    return false;
-                                });
-                                if (!anyLootLeft) {
-                                    this.undoUtil.scheduleAutoUndoWithActionBar(region.getId(), loc.getWorld(), region);
-                                }
-                            }
-                        });
-            }
-        }
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPlace(BlockPlaceEvent event) {
+        if (this.itemChecker.isKeyItem(event.getItemInHand())) event.setCancelled(true);
     }
 
-    private Location getRandomDangLocation() {
-        ConfigurationSection locsSection = this.shulkers.getConfig().getConfigurationSection("locs");
-        if (locsSection != null && !locsSection.getKeys(false).isEmpty()) {
-            List<String> dangIds = new ArrayList(locsSection.getKeys(false));
-            if (dangIds.isEmpty()) {
-                return null;
-            } else {
-                String randomDangId = (String)dangIds.get(this.random.nextInt(dangIds.size()));
-                ConfigurationSection dangSection = locsSection.getConfigurationSection(randomDangId);
-                return dangSection != null ? dangSection.getLocation("location") : null;
-            }
-        } else {
-            return null;
-        }
+    private void checkCleanup(Location loc) {
+        if (!this.configManager.getAuto().getBoolean("auto.enabled")) return;
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+        RegionManager manager = container.get(BukkitAdapter.adapt(loc.getWorld()));
+        if (manager == null) return;
+        String format = this.configManager.getRegion().getString("region.name_format", "dang_").replace("{id}", "");
+        manager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions().stream()
+                .filter(r -> r.getId().startsWith(format)).findFirst().ifPresent(region -> {
+                    ConfigurationSection locs = this.shulkers.getConfig().getConfigurationSection("locs");
+                    if (locs == null) return;
+                    boolean hasLoot = locs.getKeys(false).stream().anyMatch(k -> {
+                        ConfigurationSection s = locs.getConfigurationSection(k);
+                        Location sLoc = s.getLocation("location");
+                        if (sLoc == null || !sLoc.getWorld().getName().equals(loc.getWorld().getName()) || !region.contains(BukkitAdapter.asBlockVector(sLoc))) return false;
+                        if (!s.getBoolean("opened")) return true;
+                        if (sLoc.getBlock().getState() instanceof ShulkerBox sb) {
+                            for (ItemStack i : sb.getInventory().getContents()) if (i != null && i.getType() != Material.AIR) return true;
+                        }
+                        return false;
+                    });
+                    if (!hasLoot) this.undoUtil.scheduleAutoUndoWithActionBar(region.getId(), loc.getWorld(), region);
+                });
     }
 
-
-    @EventHandler(
-            priority = EventPriority.HIGH,
-            ignoreCancelled = true
-    )
-    public void onBlockPlace(BlockPlaceEvent event) {
-        ItemStack item = event.getItemInHand();
-        if (this.itemChecker.isKeyItem(item)) {
-            event.setCancelled(true);
-        }
-
+    private Location getRandomLocation() {
+        ConfigurationSection sec = this.shulkers.getConfig().getConfigurationSection("locs");
+        if (sec == null || sec.getKeys(false).isEmpty()) return null;
+        List<String> keys = new ArrayList<>(sec.getKeys(false));
+        return sec.getConfigurationSection(keys.get(this.random.nextInt(keys.size()))).getLocation("location");
     }
 
-    public EventManager(Storage shulkers, ConfigManager configManager, ShulkerManager shulkerManager, ItemChecker itemChecker, UndoUtil undoUtil) {
-        this.shulkers = shulkers;
-        this.configManager = configManager;
-        this.shulkerManager = shulkerManager;
-        this.itemChecker = itemChecker;
-        this.undoUtil = undoUtil;
+    private boolean isSameLocation(Location l1, Location l2) {
+        return l1.getBlockX() == l2.getBlockX() && l1.getBlockY() == l2.getBlockY() && l1.getBlockZ() == l2.getBlockZ() && l1.getWorld().getName().equals(l2.getWorld().getName());
+    }
+
+    private void spawnEffect(Location loc, String path) {
+        String type = this.configManager.getShulker().getString("particles." + path + ".type", "TOTEM");
+        Particle p = Particle.TOTEM;
+        try { p = Particle.valueOf(type.toUpperCase()); } catch (Exception ignored) {}
+        int count = this.configManager.getShulker().getInt("particles." + path + ".count", 20);
+        double ox = this.configManager.getShulker().getDouble("particles." + path + ".offsetX", 1.5);
+        double oy = this.configManager.getShulker().getDouble("particles." + path + ".offsetY", 1.5);
+        double oz = this.configManager.getShulker().getDouble("particles." + path + ".offsetZ", 1.5);
+        double extra = this.configManager.getShulker().getDouble("particles." + path + ".extra", 0.1);
+        loc.getWorld().spawnParticle(p, loc.clone().add(0.5, 1.0, 0.5), count, ox, oy, oz, extra);
+    }
+
+    private void playEffectSound(Location loc, String path) {
+        String type = this.configManager.getShulker().getString("sounds." + path + ".type", "BLOCK_BARREL_CLOSE");
+        try {
+            Sound s = Sound.valueOf(type.toUpperCase());
+            float v = (float) this.configManager.getShulker().getInt("sounds." + path + ".volume", 50) / 100.0F;
+            float p = (float) this.configManager.getShulker().getDouble("sounds." + path + ".pitch", 1.0);
+            loc.getWorld().playSound(loc, s, v, p);
+        } catch (Exception ignored) {}
     }
 }
