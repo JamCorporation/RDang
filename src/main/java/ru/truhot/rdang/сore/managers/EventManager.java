@@ -14,6 +14,7 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.block.ShulkerBox;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -25,8 +26,10 @@ import org.bukkit.event.block.BlockPistonEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.LootGenerateEvent;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.storage.Storage;
@@ -268,27 +271,56 @@ public class EventManager implements Listener {
         }
     }
 
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        InventoryHolder holder = event.getInventory().getHolder();
+        if (holder instanceof ShulkerBox shulker) {
+            if (this.shulkerManager.isShulker(shulker.getBlock())) {
+                this.checkAndScheduleCleanup(shulker.getLocation());
+            }
+        }
+    }
+
     private void checkAndScheduleCleanup(Location loc) {
         if (this.configManager.getAuto().getBoolean("auto.enabled")) {
             RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
             RegionManager manager = container.get(BukkitAdapter.adapt(loc.getWorld()));
+
             if (manager != null) {
                 ApplicableRegionSet set = manager.getApplicableRegions(BukkitAdapter.asBlockVector(loc));
                 String prefix = this.configManager.getRegion().getString("region.name_format", "dang_").replace("{id}", "");
-                set.getRegions().stream().filter((r) -> r.getId().startsWith(prefix)).findFirst().ifPresent((region) -> {
-                    ConfigurationSection locs = this.shulkers.getConfig().getConfigurationSection("locs");
-                    if (locs != null) {
-                        boolean anyLeft = locs.getKeys(false).stream().anyMatch((key) -> {
-                            ConfigurationSection s = locs.getConfigurationSection(key);
-                            Location sLoc = s.getLocation("location");
-                            return sLoc != null && sLoc.getWorld().getName().equals(loc.getWorld().getName()) && region.contains(BukkitAdapter.asBlockVector(sLoc)) && !s.getBoolean("opened");
-                        });
-                        if (!anyLeft) {
-                            this.undoUtil.scheduleAutoUndoWithActionBar(region.getId(), loc.getWorld(), region);
-                        }
 
-                    }
-                });
+                set.getRegions().stream()
+                        .filter(r -> r.getId().startsWith(prefix))
+                        .findFirst()
+                        .ifPresent(region -> {
+                            ConfigurationSection locs = this.shulkers.getConfig().getConfigurationSection("locs");
+                            if (locs != null) {
+                                boolean anyLootLeft = locs.getKeys(false).stream().anyMatch(key -> {
+                                    ConfigurationSection s = locs.getConfigurationSection(key);
+                                    Location sLoc = s.getLocation("location");
+
+                                    if (sLoc == null || !sLoc.getWorld().getName().equals(loc.getWorld().getName())
+                                            || !region.contains(BukkitAdapter.asBlockVector(sLoc))) {
+                                        return false;
+                                    }
+
+                                    if (!s.getBoolean("opened")) return true;
+                                    Block block = sLoc.getBlock();
+                                    if (block.getState() instanceof ShulkerBox shulkerBox) {
+                                        for (ItemStack item : shulkerBox.getInventory().getContents()) {
+                                            if (item != null && item.getType() != Material.AIR) {
+                                                return true;
+                                            }
+                                        }
+                                    }
+                                    return false;
+                                });
+                                if (!anyLootLeft) {
+                                    this.undoUtil.scheduleAutoUndoWithActionBar(region.getId(), loc.getWorld(), region);
+                                }
+                            }
+                        });
             }
         }
     }
