@@ -7,25 +7,23 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import lombok.RequiredArgsConstructor;
+import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.dung.DungActions;
 import ru.truhot.rdang.util.MessageUtil;
 import java.util.Random;
 
+@RequiredArgsConstructor
 public class SpawnCommand implements CommandExecutor {
     private final DungActions dungActions;
     private final ConfigManager configManager;
     private final Random random = new Random();
 
-    public SpawnCommand(DungActions dungActions, ConfigManager configManager) {
-        this.dungActions = dungActions;
-        this.configManager = configManager;
-    }
-
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("rdang.spawn")) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+        if (!Permissions.has(sender, Permissions.SPAWN)) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no_permission")));
             return true;
         }
 
@@ -39,29 +37,29 @@ public class SpawnCommand implements CommandExecutor {
         if (args.length == 3) {
             targetWorld = Bukkit.getWorld(args[2]);
             if (targetWorld == null) {
-                sender.sendMessage(MessageUtil.colorize(getMessage("spawn.world-not-found").replace("{world}", args[2])));
+                sender.sendMessage(MessageUtil.colorize(getMessage("spawn.world_not_found").replace("{world}", args[2])));
                 return true;
             }
         } else {
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(MessageUtil.colorize(getMessage("only-player")));
+                sender.sendMessage(MessageUtil.colorize(getMessage("only_player")));
                 return true;
             }
             targetWorld = player.getWorld();
         }
-        if (configManager.getDangManager().getDangsForWorld(targetWorld.getName()).isEmpty()) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("spawn.no-dang-world").replace("{world}", targetWorld.getName())));
+        if (configManager.getDangManager().getWorldDangs(targetWorld.getName()).isEmpty()) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("spawn.no_dang_world").replace("{world}", targetWorld.getName())));
             return true;
         }
         try {
             int amount = Integer.parseInt(args[1]);
             if (amount <= 0) {
-                sender.sendMessage(MessageUtil.colorize(getMessage("spawn.amount-positive")));
+                sender.sendMessage(MessageUtil.colorize(getMessage("spawn.amount_positive")));
                 return true;
             }
             int spawnedCount = 0;
             for (int i = 0; i < amount; i++) {
-                Location loc = configManager.getSpawnManager().findSuitableDungLocation(targetWorld, random);
+                Location loc = configManager.getSpawnManager().findDungLocation(targetWorld, random);
                 if (loc != null) {
                     dungActions.spawn(loc);
                     String spawnedMsg = getMessage("spawn.spawned")
@@ -74,11 +72,11 @@ public class SpawnCommand implements CommandExecutor {
                 }
             }
             if (spawnedCount == 0) {
-                sender.sendMessage(MessageUtil.colorize(getMessage("spawn.none-spawned")));
+                sender.sendMessage(MessageUtil.colorize(getMessage("spawn.none_spawned")));
             }
             return true;
         } catch (NumberFormatException e) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("spawn.invalid-number")));
+            sender.sendMessage(MessageUtil.colorize(getMessage("spawn.invalid_number")));
             return true;
         }
     }

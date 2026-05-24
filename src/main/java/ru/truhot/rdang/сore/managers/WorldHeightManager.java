@@ -19,15 +19,15 @@ public class WorldHeightManager {
             loadDefaults();
             return;
         }
-        defaultNormal = loadConfigOrDefault(section.getConfigurationSection("normal"), "normal");
-        defaultNether = loadConfigOrDefault(section.getConfigurationSection("nether"), "nether");
-        defaultEnd = loadConfigOrDefault(section.getConfigurationSection("end"), "the_end");
+        defaultNormal = loadConfig(section.getConfigurationSection("normal"), "normal");
+        defaultNether = loadConfig(section.getConfigurationSection("nether"), "nether");
+        defaultEnd = loadConfig(section.getConfigurationSection("end"), "the_end");
         ConfigurationSection customWorldsSection = section.getConfigurationSection("custom-worlds");
         if (customWorldsSection != null) {
             for (String worldName : customWorldsSection.getKeys(false)) {
                 ConfigurationSection worldSection = customWorldsSection.getConfigurationSection(worldName);
                 if (worldSection != null) {
-                    WorldHeightConfig config = loadWorldHeightConfig(worldSection);
+                    WorldHeightConfig config = loadHeightConfig(worldSection);
                     config.setWorldName(worldName);
                     worldHeights.put(worldName.toLowerCase(), config);
                 }
@@ -36,25 +36,25 @@ public class WorldHeightManager {
     }
 
     private void loadDefaults() {
-        defaultNormal = new WorldHeightConfig("normal", getDefaultMinForType("normal"), getDefaultMaxForType("normal"));
-        defaultNether = new WorldHeightConfig("nether", getDefaultMinForType("nether"), getDefaultMaxForType("nether"));
-        defaultEnd = new WorldHeightConfig("the_end", getDefaultMinForType("the_end"), getDefaultMaxForType("the_end"));
+        defaultNormal = new WorldHeightConfig("normal", defaultMin("normal"), defaultMax("normal"));
+        defaultNether = new WorldHeightConfig("nether", defaultMin("nether"), defaultMax("nether"));
+        defaultEnd = new WorldHeightConfig("the_end", defaultMin("the_end"), defaultMax("the_end"));
     }
 
-    private WorldHeightConfig loadConfigOrDefault(ConfigurationSection section, String type) {
-        if (section != null) return loadWorldHeightConfig(section);
-        return new WorldHeightConfig(type, getDefaultMinForType(type), getDefaultMaxForType(type));
+    private WorldHeightConfig loadConfig(ConfigurationSection section, String type) {
+        if (section != null) return loadHeightConfig(section);
+        return new WorldHeightConfig(type, defaultMin(type), defaultMax(type));
     }
 
-    private WorldHeightConfig loadWorldHeightConfig(ConfigurationSection section) {
+    private WorldHeightConfig loadHeightConfig(ConfigurationSection section) {
         String type = section.getString("type", "normal");
-        int minY = section.getInt("min", getDefaultMinForType(type));
-        int maxY = section.getInt("max", getDefaultMaxForType(type));
+        int minY = section.getInt("min", defaultMin(type));
+        int maxY = section.getInt("max", defaultMax(type));
         boolean useDefaultAlgorithm = section.getBoolean("use-default-algorithm", true);
         return new WorldHeightConfig(type, minY, maxY, useDefaultAlgorithm);
     }
 
-    private int getDefaultMinForType(String type) {
+    private int defaultMin(String type) {
         return switch (type.toLowerCase()) {
             case "nether" -> 32;
             case "the_end", "end" -> 40;
@@ -62,7 +62,7 @@ public class WorldHeightManager {
         };
     }
 
-    private int getDefaultMaxForType(String type) {
+    private int defaultMax(String type) {
         return switch (type.toLowerCase()) {
             case "nether" -> 100;
             case "the_end", "end" -> 80;
@@ -70,7 +70,7 @@ public class WorldHeightManager {
         };
     }
 
-    public WorldHeightConfig getHeightConfigForWorld(World world) {
+    public WorldHeightConfig getWorldHeightConfig(World world) {
         String worldName = world.getName().toLowerCase();
         if (worldHeights.containsKey(worldName)) return worldHeights.get(worldName);
         return switch (world.getEnvironment()) {

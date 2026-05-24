@@ -20,26 +20,34 @@ import ru.truhot.rdang.util.*;
 
 import java.util.*;
 
-public class DungeonListMenu extends AbstractMenu {
+public class ListMenu extends AbstractMenu {
     private static final int ITEMS_PER_PAGE = 45, INVENTORY_SIZE = 54, NEXT_PAGE_SLOT = 50, PREV_PAGE_SLOT = 48, DELETE_ALL_SLOT = 49;
     private final TeleportUtil teleportUtil;
     private final Storage shulkers, blockStorage;
     private final String prefix;
+    private final String suffix;
     private final ItemStack guiGlass = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
     private final ItemStack nextBtn, prevBtn, deleteAllBtn;
     private final Map<Material, ItemStack> dungeonTemplates = new EnumMap<>(Material.class);
 
-    public DungeonListMenu(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin) {
+    public ListMenu(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin) {
         super(configManager, plugin);
         this.shulkers = shulkers;
         this.blockStorage = blockStorage;
         this.teleportUtil = new TeleportUtil(configManager);
         String format = configManager.getRegion().getString("region.name_format", "dang_{id}");
-        this.prefix = format.contains("{id}") ? format.split("\\{id\\}")[0].toLowerCase() : format.toLowerCase();
+        if (format.contains("{id}")) {
+            String[] parts = format.split("\\{id\\}", 2);
+            this.prefix = parts[0].toLowerCase();
+            this.suffix = parts[1].toLowerCase();
+        } else {
+            this.prefix = format.toLowerCase();
+            this.suffix = "";
+        }
 
         this.nextBtn = createNextBtn();
         this.prevBtn = createPrevBtn();
-        this.deleteAllBtn = createDeleteAllBtn();
+        this.deleteAllBtn = createDeleteBtn();
         setupTemplates();
     }
 
@@ -48,7 +56,7 @@ public class DungeonListMenu extends AbstractMenu {
             ItemStack item = new ItemStack(m);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName(MessageUtil.colorize("&fДанж &8[%d]"));
+                meta.setDisplayName(MessageUtil.colorize("&fДанж &7[%d]"));
                 meta.setLore(MessageUtil.colorize(List.of("", " &fМир: &#557c93%s", " &fКорды: &#FEF06A%s", "", " &fПри нажатии &#557c93ПКМ&f телепортирует", " &fПри нажатии &#FE6A6AЛКМ&f удаляет")));
                 item.setItemMeta(meta);
             }
@@ -60,7 +68,7 @@ public class DungeonListMenu extends AbstractMenu {
     public void openMenu(Player player, int page) {
         List<String> allIds = getIds();
         if (allIds.isEmpty() && page == 0) {
-            player.sendMessage(MessageUtil.colorize(configManager.getMessages().getString("messages.list.no-dungeons")));
+            player.sendMessage(MessageUtil.colorize(configManager.getMessages().getString("messages.list.no_dungeons")));
             player.closeInventory();
             return;
         }
@@ -68,11 +76,11 @@ public class DungeonListMenu extends AbstractMenu {
     }
 
     @Override
-    protected Inventory createInventory(Player player, int page) {
+    protected Inventory buildInventory(Player player, int page) {
         List<String> allIds = getIds();
         int maxPages = Math.max(1, (int) Math.ceil((double) allIds.size() / ITEMS_PER_PAGE));
         int curPage = Math.max(0, Math.min(page, maxPages - 1));
-        Inventory inv = Bukkit.createInventory(new MenuHolder(getMenuId(), curPage), INVENTORY_SIZE, MessageUtil.getFormatted("§fСписок Данжей &7(%d/%d)", curPage + 1, maxPages));
+        Inventory inv = Bukkit.createInventory(new MenuHolder(getType(), curPage), INVENTORY_SIZE, MessageUtil.getFormatted("§7Список Данжей &8(%d/%d)", curPage + 1, maxPages));
         int start = curPage * ITEMS_PER_PAGE;
         for (int i = 0; i < ITEMS_PER_PAGE && (start + i) < allIds.size(); i++) inv.setItem(i, createIcon(allIds.get(start + i)));
         for (int s = 45; s < 54; s++) inv.setItem(s, guiGlass);
@@ -107,7 +115,7 @@ public class DungeonListMenu extends AbstractMenu {
     }
 
     @Override
-    protected void handleMenuClick(Player player, InventoryClickEvent e) {
+    protected void onMenuClick(Player player, InventoryClickEvent e) {
         e.setCancelled(true);
         ItemStack item = e.getCurrentItem();
         if (item == null || item.getType() == Material.AIR) return;
@@ -163,7 +171,7 @@ public class DungeonListMenu extends AbstractMenu {
                         player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
                     }
 
-                    String msg = configManager.getMessages().getString(res.found ? "messages.undo.region-deleted" : "messages.undo.region-not-found");
+                    String msg = configManager.getMessages().getString(res.found ? "messages.undo.region_deleted" : "messages.undo.region_not_found");
                     player.sendMessage(MessageUtil.getFormatted(msg, getNumber(rId), rId, res.worldName));
                 }
             }
@@ -191,8 +199,19 @@ public class DungeonListMenu extends AbstractMenu {
     }
 
     private int getNumber(String id) {
-        String n = id.replaceAll("[^0-9]", "");
-        return n.isEmpty() ? 0 : Integer.parseInt(n);
+        String lowered = id.toLowerCase();
+        if (lowered.startsWith(prefix) && lowered.endsWith(suffix)) {
+            int start = prefix.length();
+            int end = lowered.length() - suffix.length();
+            if (start <= end) {
+                String numberPart = id.substring(start, end).trim();
+                if (!numberPart.isEmpty() && numberPart.chars().allMatch(Character::isDigit)) {
+                    return Integer.parseInt(numberPart);
+                }
+            }
+        }
+        String fallback = id.replaceAll("[^0-9]", "");
+        return fallback.isEmpty() ? 0 : Integer.parseInt(fallback);
     }
 
     private ItemStack createPane(Material m, String n) {
@@ -203,16 +222,16 @@ public class DungeonListMenu extends AbstractMenu {
     }
 
     private ItemStack createNextBtn() {
-        ItemStack i = HeadUtil.createSkullFromBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZDRiZThhZWVjMTE4NDk2OTdhZGM2ZmQxZjE4OWIxNjY0MmRmZjE5ZjI5NTVjMDVkZWFiYTY4YzlkZmYxYmUifX19", "menu");
+        ItemStack i = HeadUtil.createSkullBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZDRiZThhZWVjMTE4NDk2OTdhZGM2ZmQxZjE4OWIxNjY0MmRmZjE5ZjI5NTVjMDVkZWFiYTY4YzlkZmYxYmUifX19", "menu");
         ItemMeta m = i.getItemMeta();
         if (m != null) m.setDisplayName(MessageUtil.colorize("§6Следующая страница §f[ §7→ §f]"));
         i.setItemMeta(m);
         return i;
     }
 
-    private ItemStack createDeleteAllBtn() {
+    private ItemStack createDeleteBtn() {
         String texture = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTllYjg2Y2FlNzAzMTIxZWIxN2MzNjc4YzFkOWQxYzI4YzMwNzljMTAyODhjODQyYTQ4Mzk4ZWQ3ZDkzMzY2ZSJ9fX0=";
-        ItemStack i = HeadUtil.createSkullFromBase64(texture, "menu");
+        ItemStack i = HeadUtil.createSkullBase64(texture, "menu");
         ItemMeta m = i.getItemMeta();
         if (m != null) {
             m.setDisplayName(MessageUtil.colorize("&fМусорка &8(:/)"));
@@ -223,7 +242,7 @@ public class DungeonListMenu extends AbstractMenu {
     }
 
     private ItemStack createPrevBtn() {
-        ItemStack i = HeadUtil.createSkullFromBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzYyNTkwMmIzODllZDZjMTQ3NTc0ZTQyMmRhOGY4ZjM2MWM4ZWI1N2U3NjMxNjc2YTcyNzc3ZTdiMWQifX19", "menu");
+        ItemStack i = HeadUtil.createSkullBase64("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzYyNTkwMmIzODllZDZjMTQ3NTc0ZTQyMmRhOGY4ZjM2MWM4ZWI1N2U3NjMxNjc2YTcyNzc3ZTdiMWQifX19", "menu");
         ItemMeta m = i.getItemMeta();
         if (m != null) m.setDisplayName(MessageUtil.colorize("§f[ §7← §f] §6Предыдущая страница"));
         i.setItemMeta(m);
@@ -238,5 +257,8 @@ public class DungeonListMenu extends AbstractMenu {
         return null;
     }
 
-    @Override protected String getMenuId() { return "dungeon_list"; }
+    @Override
+    protected MenuType getType() {
+        return MenuType.DUNGEON_LIST;
+    }
 }

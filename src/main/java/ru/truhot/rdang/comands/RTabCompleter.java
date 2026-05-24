@@ -7,7 +7,9 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.RDang;
+import ru.truhot.rdang.permission.Permissions;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -15,13 +17,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@RequiredArgsConstructor
 public class RTabCompleter implements TabCompleter {
 
     private final RDang plugin;
-
-    public RTabCompleter(RDang plugin) {
-        this.plugin = plugin;
-    }
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender,
@@ -29,12 +28,12 @@ public class RTabCompleter implements TabCompleter {
                                                 @NotNull String alias,
                                                 @NotNull String[] args) {
 
-        if (!sender.hasPermission("rdang.admin")) {
+        if (!Permissions.has(sender, Permissions.USE)) {
             return new ArrayList<>();
         }
 
         if (args.length == 1) {
-            return Stream.of("additem", "spawn", "givekey", "reload", "schem", "undo", "compass", "list", "admins", "update")
+            return Stream.of("spawn", "give", "reload", "migrate", "schem", "undo", "menu", "admins", "update")
                     .filter(arg -> arg.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
@@ -68,24 +67,6 @@ public class RTabCompleter implements TabCompleter {
                     .collect(Collectors.toList());
         }
 
-        if (subCommand.equals("additem")) {
-            if (args.length == 2) {
-                return Stream.of("10", "25", "50", "75", "100")
-                        .filter(arg -> arg.startsWith(args[1]))
-                        .collect(Collectors.toList());
-            }
-            if (args.length == 3) {
-                return Stream.of("1", "16", "32", "64")
-                        .filter(arg -> arg.startsWith(args[2]))
-                        .collect(Collectors.toList());
-            }
-            if (args.length == 4) {
-                return Stream.of("1", "16", "32", "64")
-                        .filter(arg -> arg.startsWith(args[3]))
-                        .collect(Collectors.toList());
-            }
-        }
-
         if (subCommand.equals("spawn")) {
             if (args.length == 2) {
                 List<String> suggestions = new ArrayList<>();
@@ -108,34 +89,23 @@ public class RTabCompleter implements TabCompleter {
                     .collect(Collectors.toList());
         }
 
-        if (subCommand.equals("givekey")) {
+        if (subCommand.equals("give")) {
             if (args.length == 2) {
-                return Bukkit.getOnlinePlayers().stream()
-                        .map(Player::getName)
-                        .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
+                return Stream.of("key", "compass")
+                        .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
                         .collect(Collectors.toList());
             }
             if (args.length == 3) {
-                List<String> suggestions = new ArrayList<>();
-                suggestions.add("<количество>");
-                return suggestions.stream()
-                        .filter(arg -> arg.toLowerCase().startsWith(args[2].toLowerCase()))
-                        .collect(Collectors.toList());
-            }
-        }
-
-        if (subCommand.equals("compass")) {
-            if (args.length == 2) {
                 return Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)
-                        .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
+                        .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))
                         .collect(Collectors.toList());
             }
-            if (args.length == 3) {
+            if (args.length == 4) {
                 List<String> suggestions = new ArrayList<>();
                 suggestions.add("<количество>");
                 return suggestions.stream()
-                        .filter(arg -> arg.toLowerCase().startsWith(args[2].toLowerCase()))
+                        .filter(arg -> arg.toLowerCase().startsWith(args[3].toLowerCase()))
                         .collect(Collectors.toList());
             }
         }

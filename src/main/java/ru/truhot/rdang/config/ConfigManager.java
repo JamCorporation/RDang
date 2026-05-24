@@ -77,27 +77,7 @@ public class ConfigManager {
         return YamlConfiguration.loadConfiguration(file);
     }
 
-    public FileConfiguration getAuto() {
-        return auto;
-    }
-
-    public FileConfiguration getConfig() {
-        return config;
-    }
-
-    public FileConfiguration getShulker() {
-        return shulker;
-    }
-
-    public FileConfiguration getRegion() {
-        return region;
-    }
-
-    public FileConfiguration getSchem() {
-        return schem;
-    }
-
-    public WorldHeightManager getWorldHeightManager() {
+    public WorldHeightManager getHeightManager() {
         return worldHeightManager;
     }
 }

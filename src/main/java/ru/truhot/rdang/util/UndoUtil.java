@@ -4,7 +4,9 @@ import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
-import com.sk89q.worldedit.extent.clipboard.io.*;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
 import com.sk89q.worldedit.function.operation.ForwardExtentCopy;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -20,19 +22,21 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.config.ConfigManager;
+import ru.truhot.rdang.schem.SchemAction;
 import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.logger.Logger;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.util.Objects;
 import java.util.List;
+import java.util.Objects;
 
 public class UndoUtil {
     private final ConfigManager configManager;
     private final Storage shulkers;
     private final Storage blockStorage;
     private final RDang plugin;
+    private final SchemAction schemAction;
 
     public static class UndoResult {
         public final int shulkerCount;
@@ -46,11 +50,16 @@ public class UndoUtil {
         }
     }
 
-    public UndoUtil(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin) {
+    public UndoUtil(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin, SchemAction schemAction) {
         this.configManager = configManager;
         this.shulkers = shulkers;
         this.blockStorage = blockStorage;
         this.plugin = plugin;
+        this.schemAction = schemAction;
+    }
+
+    public UndoUtil(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin) {
+        this(configManager, shulkers, blockStorage, plugin, new SchemAction(plugin, configManager));
     }
 
     public void saveDungeonData(String regionName, World world, BlockVector3 minPoint) {
@@ -83,7 +92,7 @@ public class UndoUtil {
         RegionManager manager = container.get(BukkitAdapter.adapt(world));
         if (manager != null && manager.hasRegion(regionName)) {
             ProtectedRegion region = manager.getRegion(regionName);
-            removedCount = removeShulkersInRegion(getRegionCenter(region, world), world);
+            removedCount = removeShulkers(getRegionCenter(region, world), world);
             manager.removeRegion(regionName);
             if (removedCount > 0) shulkers.save();
         }
@@ -92,10 +101,18 @@ public class UndoUtil {
     }
 
     private void restoreLandscape(String regionName, World world, BlockVector3 minPoint) {
-        File backupFile = new File(plugin.getDataFolder(), "backups/" + regionName + ".schem");
-        if (!backupFile.exists()) return;
+        File backupFile = schemAction.backupFile(regionName);
+        if (!backupFile.exists()) {
+            Logger.warn("Бэкап не найден, ландшафт не восстановлен: " + regionName);
+            return;
+        }
+
         ClipboardFormat format = ClipboardFormats.findByFile(backupFile);
-        if (format == null) return;
+        if (format == null) {
+            Logger.error("Неизвестный формат бэкапа: " + regionName);
+            return;
+        }
+
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -106,30 +123,33 @@ public class UndoUtil {
                     new BukkitRunnable() {
                         @Override
                         public void run() {
+                            boolean restored = false;
                             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
                                 ForwardExtentCopy copy = new ForwardExtentCopy(
                                         clipboard, clipboard.getRegion(), editSession, clipboard.getMinimumPoint().add(offset)
                                 );
                                 copy.setCopyingEntities(false);
                                 Operations.complete(copy);
+                                restored = true;
                             } catch (Exception e) {
-                                Logger.error("Ошибка реставрации: " + regionName);
-                            } finally {
-                                if (backupFile.exists()) backupFile.delete();
+                                Logger.error("Ошибка восстановления ландшафта: " + regionName);
+                            }
+                            if (restored && backupFile.exists() && !backupFile.delete()) {
+                                Logger.warn("Не удалось удалить бэкап после восстановления: " + regionName);
                             }
                         }
                     }.runTask(plugin);
                 } catch (Exception e) {
-                    Logger.error("Ошибка чтения бекапа: " + regionName);
+                    Logger.error("Ошибка чтения бэкапа: " + regionName);
                 }
             }
         }.runTaskAsynchronously(plugin);
     }
 
-    public void scheduleAutoUndoWithActionBar(String regionName, World world, ProtectedRegion region) {
+    public void scheduleAutoUndo(String regionName, World world, ProtectedRegion region) {
         String timeStr = configManager.getAuto().getString("auto.time");
         long seconds = TimeUtil.parse(timeStr);
-        String rawMsg = configManager.getMessages().getString("messages.actionbar-timer");
+        String rawMsg = configManager.getMessages().getString("messages.actionbar_timer");
 
         new BukkitRunnable() {
             private long timeLeft = seconds;
@@ -155,7 +175,7 @@ public class UndoUtil {
         }.runTaskTimer(plugin, 0L, 20L);
     }
 
-    private int removeShulkersInRegion(Location center, World world) {
+    private int removeShulkers(Location center, World world) {
         ConfigurationSection locs = shulkers.getConfig().getConfigurationSection("locs");
         if (locs == null) return 0;
         int radiusX = configManager.getRegion().getInt("region.size.x", 12);

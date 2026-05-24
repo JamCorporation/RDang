@@ -24,7 +24,7 @@ public class SpawnManager {
         maxZ = section.getInt("maxz", 2000);
     }
 
-    public Location findSuitableDungLocation(World world, Random random) {
+    public Location findDungLocation(World world, Random random) {
         for (int attempt = 0; attempt < 100; attempt++) {
             int x = random.nextInt(maxX - minX + 1) + minX;
             int z = random.nextInt(maxZ - minZ + 1) + minZ;
@@ -39,9 +39,9 @@ public class SpawnManager {
     }
 
     public int getSuitableHeight(World world, int x, int z, Random random) {
-        if (configManager == null || configManager.getWorldHeightManager() == null)
+        if (configManager == null || configManager.getHeightManager() == null)
             return world.getHighestBlockYAt(x, z);
-        WorldHeightManager.WorldHeightConfig hConfig = configManager.getWorldHeightManager().getHeightConfigForWorld(world);
+        WorldHeightManager.WorldHeightConfig hConfig = configManager.getHeightManager().getWorldHeightConfig(world);
         if (!hConfig.isUseDefaultAlgorithm()) {
             int minY = Math.max(hConfig.getMinY(), world.getMinHeight());
             int maxY = Math.min(hConfig.getMaxY(), world.getMaxHeight());
@@ -57,7 +57,7 @@ public class SpawnManager {
         int minY = Math.max(config.getMinY(), world.getMinHeight());
         int maxY = Math.min(config.getMaxY(), world.getMaxHeight());
         for (int y = maxY; y >= minY; y--) {
-            if (isSolidGround(world.getBlockAt(x, y - 1, z).getType()) && isAirOrReplaceable(world.getBlockAt(x, y, z).getType())) {
+            if (isSolidGround(world.getBlockAt(x, y - 1, z).getType()) && isReplaceable(world.getBlockAt(x, y, z).getType())) {
                 return y;
             }
         }
@@ -68,7 +68,7 @@ public class SpawnManager {
         int minY = Math.max(config.getMinY(), world.getMinHeight());
         int maxY = Math.min(config.getMaxY(), world.getMaxHeight());
         for (int y = minY; y <= maxY; y++) {
-            if (isSolidGround(world.getBlockAt(x, y - 1, z).getType()) && isAirOrReplaceable(world.getBlockAt(x, y, z).getType()) && isAirOrReplaceable(world.getBlockAt(x, y + 1, z).getType())) return y;
+            if (isSolidGround(world.getBlockAt(x, y - 1, z).getType()) && isReplaceable(world.getBlockAt(x, y, z).getType()) && isReplaceable(world.getBlockAt(x, y + 1, z).getType())) return y;
         }
         return (minY + maxY) / 2;
     }
@@ -78,7 +78,7 @@ public class SpawnManager {
         int maxY = Math.min(config.getMaxY(), world.getMaxHeight());
         for (int y = maxY; y >= minY; y--) {
             Material type = world.getBlockAt(x, y, z).getType();
-            if ((type == Material.END_STONE || type == Material.OBSIDIAN) && isAirOrReplaceable(world.getBlockAt(x, y + 1, z).getType())) return y + 1;
+            if ((type == Material.END_STONE || type == Material.OBSIDIAN) && isReplaceable(world.getBlockAt(x, y + 1, z).getType())) return y + 1;
         }
         return (minY + maxY) / 2;
     }
@@ -104,7 +104,7 @@ public class SpawnManager {
         return m.isSolid() && m.isBlock();
     }
 
-    private boolean isAirOrReplaceable(Material m) {
+    private boolean isReplaceable(Material m) {
         if (m.isAir()) return true;
         String n = m.name();
         return n.endsWith("_LEAVES") || n.contains("GRASS") || n.contains("FERN") || m == Material.SNOW || !m.isSolid();
@@ -121,6 +121,6 @@ public class SpawnManager {
                 }
             }
         }
-        return isAirOrReplaceable(loc.getBlock().getType());
+        return isReplaceable(loc.getBlock().getType());
     }
 }

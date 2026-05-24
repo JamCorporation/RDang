@@ -3,9 +3,8 @@ package ru.truhot.rdang.comands.impl;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import ru.truhot.rdang.RDang;
+import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
-import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
 
@@ -13,15 +12,15 @@ public class UndoCommand implements CommandExecutor {
     private final ConfigManager configManager;
     private final UndoUtil undoUtil;
 
-    public UndoCommand(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin) {
+    public UndoCommand(ConfigManager configManager, UndoUtil undoUtil) {
         this.configManager = configManager;
-        this.undoUtil = new UndoUtil(configManager, shulkers, blockStorage, plugin);
+        this.undoUtil = undoUtil;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("rdang.undo")) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+        if (!Permissions.has(sender, Permissions.UNDO)) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no_permission")));
             return true;
         }
 
@@ -36,17 +35,17 @@ public class UndoCommand implements CommandExecutor {
         UndoUtil.UndoResult result = undoUtil.performUndo(regionName);
 
         if (!result.found) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("undo.region-not-found")
+            sender.sendMessage(MessageUtil.colorize(getMessage("undo.region_not_found")
                     .replace("{id}", dungeonId)
                     .replace("{region}", regionName)));
             return true;
         }
 
-        sender.sendMessage(MessageUtil.colorize(getMessage("undo.region-deleted")
+        sender.sendMessage(MessageUtil.colorize(getMessage("undo.region_deleted")
                 .replace("{id}", dungeonId)
                 .replace("{region}", regionName)
                 .replace("{world}", result.worldName)));
-        sender.sendMessage(MessageUtil.colorize(getMessage("undo.shulkers-deleted")
+        sender.sendMessage(MessageUtil.colorize(getMessage("undo.shulkers_deleted")
                 .replace("{shulker}", String.valueOf(result.shulkerCount))));
         return true;
     }

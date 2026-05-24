@@ -15,25 +15,25 @@ public class MessageManager {
     private List<String> closedDungMessages;
 
     public void load(ConfigurationSection section) {
-        openDungMessages = MessageUtil.colorize(section.getStringList("openDung"));
+        openDungMessages = MessageUtil.colorize(section.getStringList("open_dung"));
         if (openDungMessages == null || openDungMessages.isEmpty()) {
-            Logger.warn("В секции messages нет openDung или он пуст!");
+            Logger.warn("В секции messages нет open_dung или он пуст!");
             openDungMessages = new ArrayList<>();
         }
 
-        saveKeyMessage = MessageUtil.colorize(section.getString("saveKey"));
+        saveKeyMessage = MessageUtil.colorize(section.getString("save_key"));
         if (saveKeyMessage == null || saveKeyMessage.isEmpty()) {
-            Logger.warn("В секции messages нет saveKey или он пуст!");
+            Logger.warn("В секции messages нет save_key или он пуст!");
         }
 
-        closedDungMessages = MessageUtil.colorize(section.getStringList("closedDung"));
+        closedDungMessages = MessageUtil.colorize(section.getStringList("closed_dung"));
         if (closedDungMessages == null || closedDungMessages.isEmpty()) {
-            Logger.warn("В секции messages нет closedDung или он пуст!");
+            Logger.warn("В секции messages нет closed_dung или он пуст!");
             closedDungMessages = new ArrayList<>();
         }
     }
 
-    public List<String> getFormattedOpenDungMessages(String playerName) {
+    public List<String> getOpenDungMessages(String playerName) {
         if (openDungMessages == null) return new ArrayList<>();
         List<String> formatted = new ArrayList<>();
         for (String message : openDungMessages) {

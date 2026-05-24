@@ -16,6 +16,7 @@ import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.ShulkerBox;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -28,10 +29,14 @@ import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.LootGenerateEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import java.util.function.Predicate;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.MessageUtil;
@@ -84,7 +89,7 @@ public class EventManager implements Listener {
         this.shulkers.save();
         this.checkCleanup(loc);
         for (Player p : Bukkit.getOnlinePlayers()) {
-            this.configManager.getMessageManager().getFormattedOpenDungMessages(event.getPlayer().getName()).forEach(p::sendMessage);
+            this.configManager.getMessageManager().getOpenDungMessages(event.getPlayer().getName()).forEach(p::sendMessage);
         }
         int chance = this.configManager.getItemManager().getSaveChance();
         if (Math.random() * 100.0 < chance) {
@@ -107,7 +112,7 @@ public class EventManager implements Listener {
         if (this.random.nextInt(100) < this.configManager.getItemManager().getSpawnChance()) {
             e.getLoot().add(this.configManager.getItemManager().getKey());
             if (e.getEntity() instanceof Player player) {
-                String rawMsg = this.configManager.getMessages().getString("messages.key-found");
+                String rawMsg = this.configManager.getMessages().getString("messages.key_found");
                 Bukkit.broadcastMessage(MessageUtil.colorize(rawMsg.replace("{player}", player.getName())));
             }
         }
@@ -172,7 +177,7 @@ public class EventManager implements Listener {
         event.setCancelled(true);
         Player player = event.getPlayer();
         if (player.hasCooldown(item.getType())) {
-            String msg = this.configManager.getMessages().getString("messages.givecompass.cooldown");
+            String msg = this.configManager.getMessages().getString("messages.give.compass.cooldown");
             if (msg != null) {
                 player.sendMessage(MessageUtil.colorize(msg.replace("{time}", TimeUtil.format(player.getCooldown(item.getType()) / 20))));
             }
@@ -180,15 +185,15 @@ public class EventManager implements Listener {
         }
         Location loc = this.getRandomLocation();
         if (loc == null) {
-            String noDangs = this.configManager.getMessages().getString("messages.givecompass.no_dangs");
+            String noDangs = this.configManager.getMessages().getString("messages.give.compass.no_dangs");
             if (noDangs != null) player.sendMessage(MessageUtil.colorize(noDangs));
             return;
         }
-        String showMsg = this.configManager.getMessages().getString("messages.givecompass.showing_location");
+        String showMsg = this.configManager.getMessages().getString("messages.give.compass.showing_location");
         if (showMsg != null) {
             player.sendMessage(MessageUtil.colorize(showMsg.replace("{x}", String.valueOf(loc.getBlockX())).replace("{y}", String.valueOf(loc.getBlockY())).replace("{z}", String.valueOf(loc.getBlockZ()))));
         }
-        Sound s = this.configManager.getItemManager().getCompassSoundEnum();
+        Sound s = this.configManager.getItemManager().getCompassSound();
         if (s != null) player.playSound(player.getLocation(), s, 1.0F, 1.0F);
         player.setCooldown(item.getType(), Math.toIntExact(this.configManager.getItemManager().getCompassCooldown() * 20));
         if (item.getAmount() > 1) item.setAmount(item.getAmount() - 1);
@@ -207,6 +212,48 @@ public class EventManager implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
         if (this.itemChecker.isKeyItem(event.getItemInHand())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDrop(PlayerDropItemEvent event) {
+        ItemStack stack = event.getItemDrop().getItemStack();
+        ItemManager items = configManager.getItemManager();
+        boolean glow = false;
+        if (itemChecker.isKeyItem(stack) && items.isKeyGlow()) {
+            glow = true;
+        } else if (itemChecker.isCompassItem(stack) && items.isCompassGlow()) {
+            glow = true;
+        }
+        if (glow) {
+            event.getItemDrop().setGlowing(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        ItemManager items = configManager.getItemManager();
+        Location loc = player.getLocation();
+
+        if (items.isKeyDrop()) {
+            dropFromInventory(player, loc, itemChecker::isKeyItem, items.isKeyGlow());
+        }
+        if (items.isCompassDrop()) {
+            dropFromInventory(player, loc, itemChecker::isCompassItem, items.isCompassGlow());
+        }
+    }
+
+    private void dropFromInventory(Player player, Location loc, Predicate<ItemStack> matcher, boolean glow) {
+        Inventory inv = player.getInventory();
+        for (int slot = 0; slot < inv.getSize(); slot++) {
+            ItemStack item = inv.getItem(slot);
+            if (item == null || item.getType() == Material.AIR || !matcher.test(item)) continue;
+            Item dropped = player.getWorld().dropItemNaturally(loc, item.clone());
+            if (glow) {
+                dropped.setGlowing(true);
+            }
+            inv.setItem(slot, null);
+        }
     }
 
     private void checkCleanup(Location loc) {
@@ -229,7 +276,7 @@ public class EventManager implements Listener {
                         }
                         return false;
                     });
-                    if (!hasLoot) this.undoUtil.scheduleAutoUndoWithActionBar(region.getId(), loc.getWorld(), region);
+                    if (!hasLoot) this.undoUtil.scheduleAutoUndo(region.getId(), loc.getWorld(), region);
                 });
     }
 

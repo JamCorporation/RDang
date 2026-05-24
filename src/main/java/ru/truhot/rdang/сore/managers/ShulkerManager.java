@@ -1,5 +1,6 @@
 package ru.truhot.rdang.сore.managers;
 
+import lombok.RequiredArgsConstructor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -9,20 +10,16 @@ import ru.truhot.rdang.storage.Storage;
 
 import java.util.UUID;
 
+@RequiredArgsConstructor
 public class ShulkerManager {
     private final Storage shulkers;
     private final LootManager lootManager;
-
-    public ShulkerManager(Storage shulkers, LootManager lootManager) {
-        this.shulkers = shulkers;
-        this.lootManager = lootManager;
-    }
 
     public void addShulker(Location location) {
         if (!(location.getBlock().getState() instanceof ShulkerBox))
             return;
         ShulkerBox shulkerBox = (ShulkerBox) location.getBlock().getState();
-        lootManager.fillInventoryWithRandomLoot(shulkerBox.getInventory());
+        lootManager.fillRandomLoot(shulkerBox.getInventory());
         String uuid = UUID.randomUUID().toString();
         addShulkerConfig(uuid, location, false);
     }

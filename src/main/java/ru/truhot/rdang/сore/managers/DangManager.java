@@ -47,7 +47,7 @@ public class DangManager {
             String trimmedName = biomeName.trim();
             if (trimmedName.isEmpty()) continue;
 
-            Biome biome = getBiomeFromString(trimmedName);
+            Biome biome = biomeFrom(trimmedName);
             if (biome != null) {
                 biomes.add(biome);
             }
@@ -56,7 +56,7 @@ public class DangManager {
         return biomes.isEmpty() ? List.of(Biome.DESERT) : biomes;
     }
 
-    private Biome getBiomeFromString(String biomeName) {
+    private Biome biomeFrom(String biomeName) {
         if (biomeName == null || biomeName.isEmpty()) {
             return null;
         }
@@ -72,11 +72,11 @@ public class DangManager {
         }
     }
 
-    public DangData getDangById(String id) {
+    public DangData getDang(String id) {
         return dangMap.get(id);
     }
 
-    public List<DangData> getDangsForWorld(String worldName) {
+    public List<DangData> getWorldDangs(String worldName) {
         List<DangData> result = new ArrayList<>();
         for (DangData dang : dangs) {
             if (dang.getWorld().equalsIgnoreCase(worldName)) {

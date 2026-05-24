@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public class HeadUtil {
 
-    public static ItemStack createSkullFromBase64(String base64, String sectionName) {
+    public static ItemStack createSkullBase64(String base64, String sectionName) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         if (base64 == null || base64.isEmpty()) {
             Logger.warn("отсутствует текстура головы в секции: " + sectionName);
@@ -27,14 +27,14 @@ public class HeadUtil {
         return head;
     }
 
-    public static ItemStack createSkullFromPrefixedString(String input, String sectionName) {
+    public static ItemStack createSkull(String input, String sectionName) {
         if (input == null || input.isEmpty()) {
             Logger.warn("значение материала пусто в секции: " + sectionName);
             return new ItemStack(Material.PLAYER_HEAD);
         }
 
         String base64 = isBase64Head(input) ? input.substring(9) : input;
-        return createSkullFromBase64(base64, sectionName);
+        return createSkullBase64(base64, sectionName);
     }
 
     public static void setSkullTexture(SkullMeta meta, String texture) {

@@ -13,7 +13,7 @@ public class AddShulkers {
     private final RDang plugin;
     private final ShulkerActions actions;
 
-    public void addShulkersInRegion(Location center, int radiusX, int radiusZ, int minY, int maxY) {
+    public void addShulkers(Location center, int radiusX, int radiusZ, int minY, int maxY) {
         int startX = center.getBlockX() - radiusX;
         int endX = center.getBlockX() + radiusX;
         int startZ = center.getBlockZ() - radiusZ;

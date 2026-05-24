@@ -28,22 +28,28 @@ public class ItemManager {
     private boolean hideEnchantments;
     private long compassCooldown;
     private String compassSound;
+    private boolean keyGlow = true;
+    private boolean keyDrop = true;
+    private boolean compassGlow = true;
+    private boolean compassDrop = true;
 
     public void load(ConfigurationSection section) {
         if (section == null) return;
 
         ConfigurationSection keySection = section.getConfigurationSection("key");
         if (keySection != null) {
-            this.key = loadItemFromConfig(keySection, "key");
+            this.key = loadItem(keySection, "key");
             if (!keySection.contains("chanceSpawn")) Logger.warn("нету chanceSpawn в секции key");
             this.spawnChance = keySection.getInt("chanceSpawn");
             if (!keySection.contains("saveChance")) Logger.warn("нету saveChance в секции key");
             this.saveChance = keySection.getInt("saveChance");
+            this.keyGlow = keySection.getBoolean("glow", true);
+            this.keyDrop = keySection.getBoolean("drop", true);
         }
 
         ConfigurationSection compassSection = section.getConfigurationSection("compass");
         if (compassSection != null) {
-            this.compass = loadItemFromConfig(compassSection, "compass");
+            this.compass = loadItem(compassSection, "compass");
             this.compassSound = compassSection.getString("sounds");
             if (this.compassSound == null) {
                 Logger.warn("нету sounds в секции compass");
@@ -61,10 +67,28 @@ public class ItemManager {
             } else {
                 this.compassCooldown = TimeUtil.parse(cooldownStr);
             }
+            this.compassGlow = compassSection.getBoolean("glow", true);
+            this.compassDrop = compassSection.getBoolean("drop", true);
         }
     }
 
-    public Sound getCompassSoundEnum() {
+    public boolean isKeyGlow() {
+        return keyGlow;
+    }
+
+    public boolean isKeyDrop() {
+        return keyDrop;
+    }
+
+    public boolean isCompassGlow() {
+        return compassGlow;
+    }
+
+    public boolean isCompassDrop() {
+        return compassDrop;
+    }
+
+    public Sound getCompassSound() {
         if (this.compassSound == null) return null;
         try {
             return Sound.valueOf(this.compassSound.toUpperCase());
@@ -73,15 +97,15 @@ public class ItemManager {
         }
     }
 
-    private ItemStack loadItemFromConfig(ConfigurationSection section, String type) {
+    private ItemStack loadItem(ConfigurationSection section, String type) {
         String materialName = section.getString("material");
         ItemStack item = null;
         if (materialName == null) {
             Logger.error("нету material в секции " + section.getName());
         } else if (HeadUtil.isBase64Head(materialName)) {
-            item = HeadUtil.createSkullFromPrefixedString(materialName, section.getName());
+            item = HeadUtil.createSkull(materialName, section.getName());
         } else {
-            Material material = getMaterialFromString(materialName);
+            Material material = materialFrom(materialName);
             if (material == null) {
                 Logger.error("Неверный material '" + materialName + "' в секции " + section.getName());
             } else {
@@ -142,7 +166,7 @@ public class ItemManager {
         }
     }
 
-    private Material getMaterialFromString(String materialName) {
+    private Material materialFrom(String materialName) {
         if (materialName == null || materialName.isEmpty()) return null;
         Material material = Material.getMaterial(materialName.toUpperCase());
         if (material != null) return material;

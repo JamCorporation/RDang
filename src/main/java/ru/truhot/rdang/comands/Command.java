@@ -8,6 +8,7 @@ import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.dung.DungActions;
 import ru.truhot.rdang.menu.MenuManager;
 import ru.truhot.rdang.storage.Storage;
+import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
 import ru.truhot.rdang.util.UpdateUtil;
@@ -19,17 +20,16 @@ import java.util.List;
 public class Command implements CommandExecutor {
     private final RDang plugin;
     private final ConfigManager configManager;
-    private final AddItemCommand addItemCommand;
     private final SpawnCommand spawnCommand;
-    private final GiveKeyCommand giveKeyCommand;
+    private final GiveCommand giveCommand;
     private final ReloadCommand reloadCommand;
-    private final GiveCompassCommand giveCompassCommand;
     private final SchemCommand schemCommand;
     private final UndoCommand undoCommand;
-    private final ListCommand listCommand;
+    private final MenuCommand menuCommand;
     private final UndoUtil undoUtil;
     private final AdminsCommand adminsCommand;
     private final UpdateCommand updateCommand;
+    private final MigrateCommand migrateCommand;
 
     public Command(MainCore mainCore, DungActions dungActions, RDang plugin,
                    Storage items, Storage shulkers, Storage block,
@@ -39,22 +39,21 @@ public class Command implements CommandExecutor {
         this.configManager = configManager;
         this.undoUtil = undoUtil;
         this.adminsCommand = new AdminsCommand(shulkerManager, mainCore.getLootManager(), shulkers, configManager);
-        this.addItemCommand = new AddItemCommand(mainCore, configManager);
         this.spawnCommand = new SpawnCommand(dungActions, configManager);
-        this.giveKeyCommand = new GiveKeyCommand(configManager);
+        this.giveCommand = new GiveCommand(configManager);
         this.reloadCommand = new ReloadCommand(configManager, items, shulkers);
-        this.giveCompassCommand = new GiveCompassCommand(configManager);
         this.schemCommand = new SchemCommand(dungActions, plugin, configManager, shulkers, undoUtil);
-        this.undoCommand = new UndoCommand(configManager, shulkers, block, plugin);
-        this.listCommand = new ListCommand(configManager, menuManager);
+        this.undoCommand = new UndoCommand(configManager, undoUtil);
+        this.menuCommand = new MenuCommand(configManager, menuManager);
         this.updateCommand = new UpdateCommand(plugin, configManager, updateUtil);
+        this.migrateCommand = new MigrateCommand(plugin, configManager);
     }
 
     @Override
     public boolean onCommand(CommandSender sender, org.bukkit.command.Command command,
                              String label, String[] args) {
-        if (!sender.hasPermission("rdang.admin")) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+        if (!Permissions.has(sender, Permissions.USE)) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no_permission")));
             return true;
         }
 
@@ -65,28 +64,26 @@ public class Command implements CommandExecutor {
 
         String subCommand = args[0].toLowerCase();
         switch (subCommand) {
-            case "additem":
-                return addItemCommand.onCommand(sender, command, label, args);
             case "spawn":
                 return spawnCommand.onCommand(sender, command, label, args);
             case "schem":
                 return schemCommand.onCommand(sender, command, label, args);
-            case "givekey":
-                return giveKeyCommand.onCommand(sender, command, label, args);
-            case "compass":
-                return giveCompassCommand.onCommand(sender, command, label, args);
+            case "give":
+                return giveCommand.onCommand(sender, command, label, args);
             case "reload":
                 return reloadCommand.onCommand(sender, command, label, args);
             case "undo":
                 return undoCommand.onCommand(sender, command, label, args);
-            case "list":
-                return listCommand.onCommand(sender, command, label, args);
+            case "menu":
+                return menuCommand.onCommand(sender, command, label, args);
             case "admins":
                 return adminsCommand.onCommand(sender, command, label, args);
             case "update":
                 return updateCommand.onCommand(sender, command, label, args);
+            case "migrate":
+                return migrateCommand.onCommand(sender, command, label, args);
             default:
-                String unknownMsg = getMessage("unknown-command").replace("{command}", subCommand);
+                String unknownMsg = getMessage("unknown_command").replace("{command}", subCommand);
                 sender.sendMessage(MessageUtil.colorize(unknownMsg));
                 return true;
         }

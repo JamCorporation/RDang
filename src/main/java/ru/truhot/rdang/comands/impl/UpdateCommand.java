@@ -4,27 +4,24 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
+import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.RDang;
+import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UpdateUtil;
 
+@RequiredArgsConstructor
 public class UpdateCommand implements CommandExecutor {
 
     private final RDang plugin;
     private final ConfigManager configManager;
     private final UpdateUtil updateUtil;
 
-    public UpdateCommand(RDang plugin, ConfigManager configManager, UpdateUtil updateUtil) {
-        this.plugin = plugin;
-        this.configManager = configManager;
-        this.updateUtil = updateUtil;
-    }
-
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (!sender.hasPermission("rdang.update")) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+        if (!Permissions.has(sender, Permissions.UPDATE)) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no_permission")));
             return true;
         }
 
@@ -38,10 +35,10 @@ public class UpdateCommand implements CommandExecutor {
 
             org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                 updateUtil.downloadUpdate(updateUtil.getLatestVersion(), sender);
-                sender.sendMessage(MessageUtil.colorize(getMessage("update.restart-needed")));
+                sender.sendMessage(MessageUtil.colorize(getMessage("update.restart_needed")));
             });
         } else {
-            sender.sendMessage(MessageUtil.colorize(getMessage("update.latest-version")));
+            sender.sendMessage(MessageUtil.colorize(getMessage("update.latest_version")));
         }
 
         return true;

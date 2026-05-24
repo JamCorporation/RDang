@@ -51,12 +51,14 @@ public class DungActions {
                 int radiusZ = configManager.getRegion().getInt("region.size.z");
                 int minY = configManager.getRegion().getInt("region.height.min");
                 BlockVector3 minPoint = BlockVector3.at(loc.getBlockX() - radiusX, minY, loc.getBlockZ() - radiusZ);
-                schemAction.createBackup(loc, regionName);
-                undoUtil.saveDungeonData(regionName, world, minPoint);
-                schemAction.spawnSchem(loc, dangData.getFileName());
                 int maxY = configManager.getRegion().getInt("region.height.max");
-                addShulkers.addShulkersInRegion(loc, radiusX, radiusZ, minY, maxY);
-                buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
+                DangData selected = dangData;
+                schemAction.createBackup(loc, regionName, () -> {
+                    undoUtil.saveDungeonData(regionName, world, minPoint);
+                    schemAction.spawnSchem(loc, selected.getFileName());
+                    addShulkers.addShulkers(loc, radiusX, radiusZ, minY, maxY);
+                    buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
+                });
                 return;
             }
         }

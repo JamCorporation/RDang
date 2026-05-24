@@ -34,7 +34,7 @@ public class TeleportUtil {
                     String regionNameFormat = configManager.getRegion().getString("region.name_format", "dang_{id}");
                     String prefix = regionNameFormat.replace("{id}", "");
                     String dungeonNumber = regionId.startsWith(prefix) ? regionId.substring(prefix.length()) : "?";
-                    String message = configManager.getMessages().getString("messages.list.teleported")
+                    String message = configManager.getMessages().getString("messages.list.teleport")
                             .replace("{id}", dungeonNumber);
                     player.sendMessage(MessageUtil.colorize(message));
 
@@ -43,7 +43,7 @@ public class TeleportUtil {
             }
         }
 
-        String errorMessage = configManager.getMessages().getString("messages.list.region-not-found");
+        String errorMessage = configManager.getMessages().getString("messages.list.region_not_found");
         player.sendMessage(MessageUtil.colorize(errorMessage));
 
         return false;

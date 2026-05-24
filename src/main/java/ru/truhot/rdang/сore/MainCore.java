@@ -25,8 +25,8 @@ public class MainCore implements Listener {
     private final ItemChecker itemChecker;
     private final EventManager eventHandler;
 
-    public void fillInventoryWithRandomLoot(Inventory inventory) {
-        lootManager.fillInventoryWithRandomLoot(inventory);
+    public void fillRandomLoot(Inventory inventory) {
+        lootManager.fillRandomLoot(inventory);
     }
 
     public void addShulker(Location location) {
@@ -37,8 +37,8 @@ public class MainCore implements Listener {
         shulkerManager.addShulkerConfig(id, location, opened);
     }
 
-    public void addItem(String id, ItemStack item, int chance, int minAmount, int maxAmount) {
-        lootManager.addItem(id, item, chance, minAmount, maxAmount);
+    public void addItem(String id, ItemStack item, int chance) {
+        lootManager.addItem(id, item, chance);
     }
 
     public boolean isShulker(Block placedBlock) {

@@ -32,13 +32,13 @@ public final class RDang extends JavaPlugin {
         Storage shulkers = new Storage("shulkers.yml", this);
         Storage items = new Storage("items.yml", this);
         Storage blockStorage = new Storage("block.yml", this);
-        UndoUtil undoUtil = new UndoUtil(configManager, shulkers, blockStorage, this);
+        SchemAction schemAction = new SchemAction(this, configManager);
+        UndoUtil undoUtil = new UndoUtil(configManager, shulkers, blockStorage, this, schemAction);
         MainCore mainCore = CoreFactory.createDang(items, shulkers, configManager, undoUtil);
         ShulkerActions shulkerActions = new BDangShulker(mainCore);
         AddShulkers addShulkers = new AddShulkers(this, shulkerActions);
-        SchemAction schemAction = new SchemAction(this, configManager);
         DungActions dungActions = new DungActions(schemAction, addShulkers, configManager, undoUtil);
-        MenuManager menuManager = new MenuManager(configManager, shulkers, blockStorage, this);
+        MenuManager menuManager = new MenuManager(configManager, items, shulkers, blockStorage, this, mainCore.getLootManager());
         UpdateUtil updateUtil = new UpdateUtil(this);
         if (getConfig().getBoolean("settings.update-check")) {updateUtil.check();}
         Command command = new Command(mainCore, dungActions, this, items, shulkers, blockStorage, configManager, menuManager, undoUtil, mainCore.getShulkerManager(), updateUtil);

@@ -7,31 +7,29 @@ import org.bukkit.entity.Player;
 import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
-import ru.truhot.rdang.storage.Storage;
+import ru.truhot.rdang.menu.MenuManager;
+import ru.truhot.rdang.menu.MenuType;
 import ru.truhot.rdang.util.MessageUtil;
 
 @RequiredArgsConstructor
-public class ReloadCommand implements CommandExecutor {
+public class MenuCommand implements CommandExecutor {
+
     private final ConfigManager configManager;
-    private final Storage items;
-    private final Storage shulkers;
+    private final MenuManager menuManager;
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!Permissions.has(sender, Permissions.RELOAD)) {
+        if (!Permissions.has(sender, Permissions.MENU)) {
             sender.sendMessage(MessageUtil.colorize(getMessage("no_permission")));
             return true;
         }
-        if (args.length > 1) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("reload.usage")));
+
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("only_player")));
             return true;
         }
 
-        configManager.reloadAll();
-        items.reloadConfig();
-        shulkers.reloadConfig();
-
-        sender.sendMessage(MessageUtil.colorize(getMessage("reload.success")));
+        menuManager.open(MenuType.MAIN, player);
         return true;
     }
 

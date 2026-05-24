@@ -7,7 +7,9 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.RDang;
+import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.dung.DungActions;
 import ru.truhot.rdang.storage.Storage;
@@ -15,6 +17,7 @@ import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
 import java.io.File;
 
+@RequiredArgsConstructor
 public class SchemCommand implements CommandExecutor {
     private final DungActions dungActions;
     private final RDang plugin;
@@ -22,23 +25,15 @@ public class SchemCommand implements CommandExecutor {
     private final Storage shulkers;
     private final UndoUtil undoUtil;
 
-    public SchemCommand(DungActions dungActions, RDang plugin, ConfigManager configManager, Storage shulkers, UndoUtil undoUtil) {
-        this.dungActions = dungActions;
-        this.plugin = plugin;
-        this.configManager = configManager;
-        this.shulkers = shulkers;
-        this.undoUtil = undoUtil;
-    }
-
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("rdang.schem")) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("no-permission")));
+        if (!Permissions.has(sender, Permissions.SCHEM)) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("no_permission")));
             return true;
         }
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("only-player")));
+            sender.sendMessage(MessageUtil.colorize(getMessage("only_player")));
             return true;
         }
 
@@ -51,13 +46,13 @@ public class SchemCommand implements CommandExecutor {
         File schemFile = findFile(schemName);
 
         if (schemFile == null || !schemFile.exists()) {
-            player.sendMessage(MessageUtil.colorize(getMessage("schem.not-found").replace("{schem}", schemName)));
+            player.sendMessage(MessageUtil.colorize(getMessage("schem.not_found").replace("{schem}", schemName)));
             return true;
         }
 
         String fileNameOnly = schemFile.getName();
         if (!isRegistered(fileNameOnly)) {
-            player.sendMessage(MessageUtil.colorize(getMessage("schem.not-registered").replace("{schem}", fileNameOnly)));
+            player.sendMessage(MessageUtil.colorize(getMessage("schem.not_registered").replace("{schem}", fileNameOnly)));
             return true;
         }
 
@@ -68,22 +63,24 @@ public class SchemCommand implements CommandExecutor {
             int freeId = dungActions.getFreeId();
             String regionName = configManager.getRegion().getString("region.name_format", "dang_{id}").replace("{id}", String.valueOf(freeId));
 
-            dungActions.getSchemAction().createBackup(spawnLocation, regionName);
-            dungActions.getSchemAction().spawnSchem(spawnLocation, fileNameOnly);
-
             int rx = configManager.getRegion().getInt("region.size.x", 12);
             int rz = configManager.getRegion().getInt("region.size.z", 12);
             int minY = configManager.getRegion().getInt("region.height.min", -10);
+            int maxY = configManager.getRegion().getInt("region.height.max", 10);
 
-            dungActions.getAddShulkers().addShulkersInRegion(spawnLocation, rx, rz, minY, configManager.getRegion().getInt("region.height.max", 10));
-            dungActions.buildRegion(spawnLocation.getBlockX(), spawnLocation.getBlockZ(), spawnLocation.getWorld(), freeId);
-            undoUtil.saveDungeonData(regionName, spawnLocation.getWorld(), BlockVector3.at(spawnLocation.getBlockX() - rx, minY, spawnLocation.getBlockZ() - rz));
+            dungActions.getSchemAction().createBackup(spawnLocation, regionName, () -> {
+                undoUtil.saveDungeonData(regionName, spawnLocation.getWorld(),
+                        BlockVector3.at(spawnLocation.getBlockX() - rx, minY, spawnLocation.getBlockZ() - rz));
+                dungActions.getSchemAction().spawnSchem(spawnLocation, fileNameOnly);
+                dungActions.getAddShulkers().addShulkers(spawnLocation, rx, rz, minY, maxY);
+                dungActions.buildRegion(spawnLocation.getBlockX(), spawnLocation.getBlockZ(), spawnLocation.getWorld(), freeId);
 
-            player.sendMessage(MessageUtil.colorize(getMessage("schem.success")
-                    .replace("{schem}", fileNameOnly)
-                    .replace("{x}", String.valueOf(spawnLocation.getBlockX()))
-                    .replace("{y}", String.valueOf(spawnLocation.getBlockY()))
-                    .replace("{z}", String.valueOf(spawnLocation.getBlockZ()))));
+                player.sendMessage(MessageUtil.colorize(getMessage("schem.success")
+                        .replace("{schem}", fileNameOnly)
+                        .replace("{x}", String.valueOf(spawnLocation.getBlockX()))
+                        .replace("{y}", String.valueOf(spawnLocation.getBlockY()))
+                        .replace("{z}", String.valueOf(spawnLocation.getBlockZ()))));
+            });
             return true;
         } catch (Exception e) {
             player.sendMessage(MessageUtil.colorize(getMessage("schem.error").replace("{schem}", fileNameOnly)));
