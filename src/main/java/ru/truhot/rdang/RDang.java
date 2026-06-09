@@ -2,15 +2,15 @@ package ru.truhot.rdang;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
-import ru.truhot.rdang.addshulkers.AddShulkers;
+import ru.truhot.rdang.addchests.AddChests;
 import ru.truhot.rdang.comands.Command;
 import ru.truhot.rdang.comands.RTabCompleter;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.dung.DungActions;
 import ru.truhot.rdang.menu.MenuManager;
 import ru.truhot.rdang.schem.SchemAction;
-import ru.truhot.rdang.shulker.BDangShulker;
-import ru.truhot.rdang.shulker.ShulkerActions;
+import ru.truhot.rdang.chest.BDangChest;
+import ru.truhot.rdang.chest.ChestActions;
 import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.CoreProtectManager;
 import ru.truhot.rdang.util.Metrics;
@@ -38,15 +38,15 @@ public final class RDang extends JavaPlugin {
         SchemAction schemAction = new SchemAction(this, configManager);
         this.undoUtil = new UndoUtil(configManager, shulkers, blockStorage, this, schemAction);
         MainCore mainCore = CoreFactory.createDang(items, shulkers, configManager, undoUtil);
-        ShulkerActions shulkerActions = new BDangShulker(mainCore);
-        AddShulkers addShulkers = new AddShulkers(this, shulkerActions);
+        ChestActions chestActions = new BDangChest(mainCore);
+        AddChests addChests = new AddChests(this, chestActions);
         CoreProtectManager coreProtectManager = new CoreProtectManager();
         coreProtectManager.init();
-        DungActions dungActions = new DungActions(schemAction, addShulkers, configManager, undoUtil, coreProtectManager);
+        DungActions dungActions = new DungActions(schemAction, addChests, configManager, undoUtil, coreProtectManager);
         MenuManager menuManager = new MenuManager(configManager, items, shulkers, blockStorage, this, mainCore.getLootManager());
         UpdateUtil updateUtil = new UpdateUtil(this);
         if (getConfig().getBoolean("settings.update-check")) {updateUtil.check();}
-        Command command = new Command(mainCore, dungActions, this, items, shulkers, blockStorage, configManager, menuManager, undoUtil, mainCore.getShulkerManager(), updateUtil);
+        Command command = new Command(mainCore, dungActions, this, items, shulkers, blockStorage, configManager, menuManager, undoUtil, mainCore.getChestManager(), updateUtil);
         getServer().getPluginManager().registerEvents(menuManager, this);
         getCommand("rdang").setExecutor(command);
         getCommand("rdang").setTabCompleter(new RTabCompleter(this));

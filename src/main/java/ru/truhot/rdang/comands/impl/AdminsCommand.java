@@ -1,7 +1,7 @@
 package ru.truhot.rdang.comands.impl;
 
 import org.bukkit.block.Block;
-import org.bukkit.block.ShulkerBox;
+import org.bukkit.block.Container;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -12,18 +12,18 @@ import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.MessageUtil;
-import ru.truhot.rdang.сore.managers.ShulkerManager;
+import ru.truhot.rdang.сore.managers.ChestManager;
 import ru.truhot.rdang.сore.managers.LootManager;
 
 public class AdminsCommand implements CommandExecutor {
 
-    private final ShulkerManager shulkerManager;
+    private final ChestManager chestManager;
     private final LootManager lootManager;
     private final Storage shulkersStorage;
     private final ConfigManager configManager;
 
-    public AdminsCommand(ShulkerManager shulkerManager, LootManager lootManager, Storage shulkersStorage, ConfigManager configManager) {
-        this.shulkerManager = shulkerManager;
+    public AdminsCommand(ChestManager chestManager, LootManager lootManager, Storage shulkersStorage, ConfigManager configManager) {
+        this.chestManager = chestManager;
         this.lootManager = lootManager;
         this.shulkersStorage = shulkersStorage;
         this.configManager = configManager;
@@ -50,14 +50,14 @@ public class AdminsCommand implements CommandExecutor {
 
         Block target = player.getTargetBlockExact(5);
 
-        if (target == null || !shulkerManager.isShulker(target)) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("admins.not_shulker")));
+        if (target == null || !chestManager.isChest(target)) {
+            sender.sendMessage(MessageUtil.colorize(getMessage("admins.not_chest")));
             return true;
         }
 
         switch (action) {
             case "test" -> {
-                shulkerManager.addShulker(target.getLocation());
+                chestManager.addChest(target.getLocation());
                 player.sendMessage(MessageUtil.colorize(getMessage("admins.test_success")));
             }
             case "remove" -> {
@@ -65,8 +65,8 @@ public class AdminsCommand implements CommandExecutor {
                 player.sendMessage(MessageUtil.colorize(getMessage("admins.remove_success")));
             }
             case "loot" -> {
-                if (target.getState() instanceof ShulkerBox box) {
-                    lootManager.fillRandomLoot(box.getInventory());
+                if (target.getState() instanceof Container container) {
+                    lootManager.fillRandomLoot(container.getInventory());
                     player.sendMessage(MessageUtil.colorize(getMessage("admins.loot_success")));
                 }
             }

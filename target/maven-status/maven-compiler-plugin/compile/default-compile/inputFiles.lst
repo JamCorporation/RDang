@@ -1,4 +1,6 @@
-E:\RDang\src\main\java\ru\truhot\rdang\addshulkers\AddShulkers.java
+E:\RDang\src\main\java\ru\truhot\rdang\addchests\AddChests.java
+E:\RDang\src\main\java\ru\truhot\rdang\chest\BDangChest.java
+E:\RDang\src\main\java\ru\truhot\rdang\chest\ChestActions.java
 E:\RDang\src\main\java\ru\truhot\rdang\comands\Command.java
 E:\RDang\src\main\java\ru\truhot\rdang\comands\impl\AdminsCommand.java
 E:\RDang\src\main\java\ru\truhot\rdang\comands\impl\GiveCommand.java
@@ -26,8 +28,6 @@ E:\RDang\src\main\java\ru\truhot\rdang\menu\MenuType.java
 E:\RDang\src\main\java\ru\truhot\rdang\permission\Permissions.java
 E:\RDang\src\main\java\ru\truhot\rdang\RDang.java
 E:\RDang\src\main\java\ru\truhot\rdang\schem\SchemAction.java
-E:\RDang\src\main\java\ru\truhot\rdang\shulker\BDangShulker.java
-E:\RDang\src\main\java\ru\truhot\rdang\shulker\ShulkerActions.java
 E:\RDang\src\main\java\ru\truhot\rdang\storage\Storage.java
 E:\RDang\src\main\java\ru\truhot\rdang\util\CoreProtectManager.java
 E:\RDang\src\main\java\ru\truhot\rdang\util\HeadUtil.java
@@ -42,12 +42,12 @@ E:\RDang\src\main\java\ru\truhot\rdang\util\UndoUtil.java
 E:\RDang\src\main\java\ru\truhot\rdang\util\UpdateUtil.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\CoreFactory.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\MainCore.java
+E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\ChestManager.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\DangManager.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\EventManager.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\ItemChecker.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\ItemManager.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\LootManager.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\MessageManager.java
-E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\ShulkerManager.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\SpawnManager.java
 E:\RDang\src\main\java\ru\truhot\rdang\сore\managers\WorldHeightManager.java

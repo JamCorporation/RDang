@@ -78,7 +78,7 @@ public class SchemCommand implements CommandExecutor {
                 undoUtil.saveDungeonData(regionName, spawnLocation.getWorld(),
                         BlockVector3.at(spawnLocation.getBlockX() - rx, minY, spawnLocation.getBlockZ() - rz));
                 dungActions.getSchemAction().spawnSchem(spawnLocation, fileNameOnly);
-                dungActions.getAddShulkers().addShulkers(spawnLocation, rx, rz, minY, maxY);
+                dungActions.getAddChests().addChests(spawnLocation, rx, rz, minY, maxY);
                 dungActions.buildRegion(spawnLocation.getBlockX(), spawnLocation.getBlockZ(), spawnLocation.getWorld(), freeId);
 
                 player.sendMessage(MessageUtil.colorize(getMessage("schem.success")

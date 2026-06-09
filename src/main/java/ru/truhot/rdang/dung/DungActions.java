@@ -14,7 +14,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.jetbrains.annotations.NotNull;
-import ru.truhot.rdang.addshulkers.AddShulkers;
+import ru.truhot.rdang.addchests.AddChests;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.data.DangData;
 import ru.truhot.rdang.schem.SchemAction;
@@ -27,14 +27,14 @@ import java.util.Random;
 
 public class DungActions {
     private final SchemAction schemAction;
-    private final AddShulkers addShulkers;
+    private final AddChests addChests;
     private final ConfigManager configManager;
     private final UndoUtil undoUtil;
     private final CoreProtectManager coreProtectManager;
 
-    public DungActions(SchemAction schemAction, AddShulkers addShulkers, ConfigManager configManager, UndoUtil undoUtil, CoreProtectManager coreProtectManager) {
+    public DungActions(SchemAction schemAction, AddChests addChests, ConfigManager configManager, UndoUtil undoUtil, CoreProtectManager coreProtectManager) {
         this.schemAction = schemAction;
-        this.addShulkers = addShulkers;
+        this.addChests = addChests;
         this.configManager = configManager;
         this.undoUtil = undoUtil;
         this.coreProtectManager = coreProtectManager;
@@ -44,8 +44,8 @@ public class DungActions {
         return schemAction;
     }
 
-    public AddShulkers getAddShulkers() {
-        return addShulkers;
+    public AddChests getAddChests() {
+        return addChests;
     }
 
     public ConfigManager getConfigManager() {
@@ -87,7 +87,7 @@ public class DungActions {
                 schemAction.createBackup(loc, regionName, () -> {
                     undoUtil.saveDungeonData(regionName, world, minPoint);
                     schemAction.spawnSchem(loc, selected.getFileName());
-                    addShulkers.addShulkers(loc, radiusX, radiusZ, minY, maxY);
+                    addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
                     buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
                 });
                 return;

@@ -10,23 +10,23 @@ import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.сore.managers.EventManager;
 import ru.truhot.rdang.сore.managers.ItemChecker;
 import ru.truhot.rdang.сore.managers.LootManager;
-import ru.truhot.rdang.сore.managers.ShulkerManager;
+import ru.truhot.rdang.сore.managers.ChestManager;
 
 public class MainCore implements Listener {
     private final Storage items;
     private final Storage shulkers;
     private final ConfigManager configManager;
     private final LootManager lootManager;
-    private final ShulkerManager shulkerManager;
+    private final ChestManager chestManager;
     private final ItemChecker itemChecker;
     private final EventManager eventHandler;
 
-    public MainCore(Storage items, Storage shulkers, ConfigManager configManager, LootManager lootManager, ShulkerManager shulkerManager, ItemChecker itemChecker, EventManager eventHandler) {
+    public MainCore(Storage items, Storage shulkers, ConfigManager configManager, LootManager lootManager, ChestManager chestManager, ItemChecker itemChecker, EventManager eventHandler) {
         this.items = items;
         this.shulkers = shulkers;
         this.configManager = configManager;
         this.lootManager = lootManager;
-        this.shulkerManager = shulkerManager;
+        this.chestManager = chestManager;
         this.itemChecker = itemChecker;
         this.eventHandler = eventHandler;
     }
@@ -47,8 +47,8 @@ public class MainCore implements Listener {
         return lootManager;
     }
 
-    public ShulkerManager getShulkerManager() {
-        return shulkerManager;
+    public ChestManager getChestManager() {
+        return chestManager;
     }
 
     public ItemChecker getItemChecker() {
@@ -63,20 +63,20 @@ public class MainCore implements Listener {
         lootManager.fillRandomLoot(inventory);
     }
 
-    public void addShulker(Location location) {
-        shulkerManager.addShulker(location);
+    public void addChest(Location location) {
+        chestManager.addChest(location);
     }
 
-    public void addShulkerConfig(String id, Location location, boolean opened) {
-        shulkerManager.addShulkerConfig(id, location, opened);
+    public void addChestConfig(String id, Location location, boolean opened) {
+        chestManager.addChestConfig(id, location, opened);
     }
 
     public void addItem(String id, ItemStack item, int chance) {
         lootManager.addItem(id, item, chance);
     }
 
-    public boolean isShulker(Block placedBlock) {
-        return shulkerManager.isShulker(placedBlock);
+    public boolean isChest(Block placedBlock) {
+        return chestManager.isChest(placedBlock);
     }
 
     public boolean isValidKey(ItemStack item) {

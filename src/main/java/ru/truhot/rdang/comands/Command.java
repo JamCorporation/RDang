@@ -13,7 +13,7 @@ import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
 import ru.truhot.rdang.util.UpdateUtil;
 import ru.truhot.rdang.сore.MainCore;
-import ru.truhot.rdang.сore.managers.ShulkerManager;
+import ru.truhot.rdang.сore.managers.ChestManager;
 
 import java.util.List;
 
@@ -34,11 +34,11 @@ public class Command implements CommandExecutor {
     public Command(MainCore mainCore, DungActions dungActions, RDang plugin,
                    Storage items, Storage shulkers, Storage block,
                    ConfigManager configManager, MenuManager menuManager, UndoUtil undoUtil,
-                   ShulkerManager shulkerManager, UpdateUtil updateUtil) {
+                   ChestManager chestManager, UpdateUtil updateUtil) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.undoUtil = undoUtil;
-        this.adminsCommand = new AdminsCommand(shulkerManager, mainCore.getLootManager(), shulkers, configManager);
+        this.adminsCommand = new AdminsCommand(chestManager, mainCore.getLootManager(), shulkers, configManager);
         this.spawnCommand = new SpawnCommand(dungActions, configManager);
         this.giveCommand = new GiveCommand(configManager);
         this.reloadCommand = new ReloadCommand(configManager, items, shulkers);

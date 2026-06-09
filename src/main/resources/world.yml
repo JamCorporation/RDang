@@ -5,51 +5,27 @@ spawn:
   maxz: 2000
 
 dang:
+  1:
+    fileName: FantasticSmallMoon_Allify.schem
+    biome: the_end;end_highlands;end_midlands;end_barrens;small_end_islands
+    world: world
   2:
-    fileName: dang2.schem
-    biome: the_end;end_highlands;end_midlands;end_barrens;small_end_islands
-    world: world_the_end
+    fileName: FantasySpawn_Allify.schem
+    biome: plains;sunflower_plains;savanna;birch_forest;dark_forest;flower_forest;cherry_grove
+    world: world
   3:
-    fileName: grib1.schem
-    biome: the_end;end_highlands;end_midlands;end_barrens;small_end_islands
-    world: world_the_end
+    fileName: fantasy-tower.schem
+    biome: plains;sunflower_plains;savanna;birch_forest;dark_forest;flower_forest;cherry_grove
+    world: world
   4:
-    fileName: temple.schem
-    biome: desert
+    fileName: FarmHouse_Allify_litematic.schem
+    biome: plains;sunflower_plains;savanna
     world: world
   5:
-    fileName: grib.schem
+    fileName: nice-castle.schem
     biome: plains;sunflower_plains;savanna;birch_forest;dark_forest;flower_forest;cherry_grove
     world: world
   6:
-    fileName: light.schem
-    biome: plains;sunflower_plains;savanna;birch_forest;dark_forest;flower_forest;cherry_grove
+    fileName: anvilstead.schem
+    biome: desert;badlands;eroded_badlands;wooded_badlands
     world: world
-  7:
-    fileName: moiak.schem
-    biome: desert
-    world: world
-  8:
-    fileName: smel.schem
-    biome: plains;sunflower_plains;savanna;birch_forest;dark_forest;flower_forest;cherry_grove
-    world: world
-  9:
-    fileName: tower.schem
-    biome: plains;sunflower_plains;savanna;birch_forest;dark_forest;flower_forest;cherry_grove
-    world: world
-  10:
-    fileName: сemetery.schem
-    biome: desert
-    world: world
-  11:
-    fileName: goder.schem
-    biome: plains;sunflower_plains;savanna;birch_forest;dark_forest;flower_forest;cherry_grove
-    world: world
-  12:
-    fileName: grib2.schem
-    biome: nether_wastes;crimson_forest;warped_forest;soul_sand_valley;basalt_deltas
-    world: world_nether
-  13:
-    fileName: grib3.schem
-    biome: nether_wastes;crimson_forest;warped_forest;soul_sand_valley;basalt_deltas
-    world: world_nether

@@ -39,23 +39,40 @@ public class SchemAction {
 
     public void spawnSchem(@NotNull Location location, @NotNull String fileName) {
         File schemFile = new File(plugin.getDataFolder() + "/schem/" + fileName);
+        Logger.info("[Schem] Ищем схему: " + schemFile.getAbsolutePath());
         if (!schemFile.exists()) {
-            File faweFolder = new File(Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit").getDataFolder(), "schematics");
-            File alternativeFile = new File(faweFolder, fileName);
-            if (alternativeFile.exists()) {
-                schemFile = alternativeFile;
-            } else {
-                File weFolder = new File(Bukkit.getPluginManager().getPlugin("WorldEdit").getDataFolder(), "schematics");
-                alternativeFile = new File(weFolder, fileName);
+            org.bukkit.plugin.Plugin fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
+            if (fawe != null) {
+                File faweFolder = new File(fawe.getDataFolder(), "schematics");
+                File alternativeFile = new File(faweFolder, fileName);
                 if (alternativeFile.exists()) {
                     schemFile = alternativeFile;
+                    Logger.info("[Schem] Найдена в FAWE: " + schemFile.getAbsolutePath());
+                }
+            }
+            if (!schemFile.exists()) {
+                org.bukkit.plugin.Plugin we = Bukkit.getPluginManager().getPlugin("WorldEdit");
+                if (we != null) {
+                    File weFolder = new File(we.getDataFolder(), "schematics");
+                    File alternativeFile = new File(weFolder, fileName);
+                    if (alternativeFile.exists()) {
+                        schemFile = alternativeFile;
+                        Logger.info("[Schem] Найдена в WE: " + schemFile.getAbsolutePath());
+                    }
                 }
             }
         }
-        if (!schemFile.exists()) return;
+        if (!schemFile.exists()) {
+            Logger.error("[Schem] Файл не найден: " + fileName);
+            return;
+        }
         final File finalFile = schemFile;
         ClipboardFormat format = ClipboardFormats.findByFile(finalFile);
-        if (format == null) return;
+        if (format == null) {
+            Logger.error("[Schem] Формат не распознан для: " + finalFile.getAbsolutePath());
+            return;
+        }
+        Logger.info("[Schem] Формат: " + format.getName() + ", файл: " + finalFile.getName());
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -86,12 +103,14 @@ public class SchemAction {
                                 }
                                 Operations.complete(copy);
                             } catch (Exception e) {
-                                Logger.error("Не удалось вставить схему: " + fileName);
+                                Logger.error("Не удалось вставить схему: " + fileName + " | " + e.getMessage());
+                                e.printStackTrace();
                             }
                         }
                     }.runTask(plugin);
                 } catch (Exception e) {
-                    Logger.error("Ошибка при чтении схемы: " + fileName);
+                    Logger.error("Ошибка при чтении схемы: " + fileName + " | " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         }.runTaskAsynchronously(plugin);

@@ -13,7 +13,7 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
-import org.bukkit.block.ShulkerBox;
+import org.bukkit.block.Container;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -45,15 +45,15 @@ import ru.truhot.rdang.util.TimeUtil;
 public class EventManager implements Listener {
     private final Storage shulkers;
     private final ConfigManager configManager;
-    private final ShulkerManager shulkerManager;
+    private final ChestManager chestManager;
     private final ItemChecker itemChecker;
     private final Random random = new Random();
     private final UndoUtil undoUtil;
 
-    public EventManager(Storage shulkers, ConfigManager configManager, ShulkerManager shulkerManager, ItemChecker itemChecker, UndoUtil undoUtil) {
+    public EventManager(Storage shulkers, ConfigManager configManager, ChestManager chestManager, ItemChecker itemChecker, UndoUtil undoUtil) {
         this.shulkers = shulkers;
         this.configManager = configManager;
-        this.shulkerManager = shulkerManager;
+        this.chestManager = chestManager;
         this.itemChecker = itemChecker;
         this.undoUtil = undoUtil;
     }
@@ -63,21 +63,21 @@ public class EventManager implements Listener {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         ConfigurationSection locsSection = this.shulkers.getConfig().getConfigurationSection("locs");
         if (locsSection != null && event.getClickedBlock() != null) {
-            if (this.shulkerManager.isShulker(event.getClickedBlock())) {
+            if (this.chestManager.isChest(event.getClickedBlock())) {
                 for (String itemId : locsSection.getKeys(false)) {
-                    ConfigurationSection shulker = locsSection.getConfigurationSection(itemId);
-                    Location shulkerLocation = shulker.getLocation("location");
-                    if (isSameLocation(event.getClickedBlock().getLocation(), shulkerLocation) && !shulker.getBoolean("opened")) {
+                    ConfigurationSection chest = locsSection.getConfigurationSection(itemId);
+                    Location chestLocation = chest.getLocation("location");
+                    if (isSameLocation(event.getClickedBlock().getLocation(), chestLocation) && !chest.getBoolean("opened")) {
                         if (!this.configManager.isNeedKey()) {
-                            ShulkerOpen(event, shulker, shulkerLocation, null);
+                            ChestOpen(event, chest, chestLocation, null);
                             return;
                         }
                         ItemStack itemInHand = event.getItem();
                         if (itemInHand != null && itemInHand.getType() != Material.AIR && this.itemChecker.isValidKey(itemInHand)) {
-                            ShulkerOpen(event, shulker, shulkerLocation, itemInHand);
+                            ChestOpen(event, chest, chestLocation, itemInHand);
                             return;
                         }
-                        ShulkerLocked(event, shulkerLocation);
+                        ChestLocked(event, chestLocation);
                         return;
                     }
                 }
@@ -85,10 +85,10 @@ public class EventManager implements Listener {
         }
     }
 
-    private void ShulkerOpen(PlayerInteractEvent event, ConfigurationSection shulker, Location loc, ItemStack item) {
+    private void ChestOpen(PlayerInteractEvent event, ConfigurationSection chest, Location loc, ItemStack item) {
         spawnEffect(loc, "open");
         playEffectSound(loc, "open");
-        shulker.set("opened", true);
+        chest.set("opened", true);
         Bukkit.getScheduler().runTaskAsynchronously(configManager.getPlugin(), () -> this.shulkers.save());
         this.checkCleanup(loc);
         if (this.configManager.isNeedKey()) {
@@ -111,7 +111,7 @@ public class EventManager implements Listener {
         }
     }
 
-    private void ShulkerLocked(PlayerInteractEvent event, Location loc) {
+    private void ChestLocked(PlayerInteractEvent event, Location loc) {
         event.setCancelled(true);
         spawnEffect(loc, "locked");
         playEffectSound(loc, "locked");
@@ -142,7 +142,7 @@ public class EventManager implements Listener {
 
     private void processPiston(List<Block> blocks, BlockPistonEvent e) {
         for (Block b : blocks) {
-            if (this.shulkerManager.isShulker(b)) {
+            if (this.chestManager.isChest(b)) {
                 e.setCancelled(true);
                 break;
             }
@@ -162,7 +162,7 @@ public class EventManager implements Listener {
 
     @EventHandler
     public void onBreak(BlockBreakEvent e) {
-        if (this.shulkerManager.isShulker(e.getBlock())) {
+        if (this.chestManager.isChest(e.getBlock())) {
             ConfigurationSection locs = this.shulkers.getConfig().getConfigurationSection("locs");
             if (locs == null) return;
             for (String id : locs.getKeys(false)) {
@@ -214,9 +214,9 @@ public class EventManager implements Listener {
 
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
-        if (event.getInventory().getHolder() instanceof ShulkerBox shulker) {
-            if (this.shulkerManager.isShulker(shulker.getBlock())) {
-                this.checkCleanup(shulker.getLocation());
+        if (event.getInventory().getHolder() instanceof Container container) {
+            if (this.chestManager.isChest(container.getBlock())) {
+                this.checkCleanup(container.getLocation());
             }
         }
     }
@@ -283,8 +283,8 @@ public class EventManager implements Listener {
                         Location sLoc = s.getLocation("location");
                         if (sLoc == null || !sLoc.getWorld().getName().equals(loc.getWorld().getName()) || !region.contains(BukkitAdapter.asBlockVector(sLoc))) return false;
                         if (!s.getBoolean("opened")) return true;
-                        if (sLoc.getBlock().getState() instanceof ShulkerBox sb) {
-                            for (ItemStack i : sb.getInventory().getContents()) if (i != null && i.getType() != Material.AIR) return true;
+                        if (sLoc.getBlock().getState() instanceof Container invContainer) {
+                            for (ItemStack i : invContainer.getInventory().getContents()) if (i != null && i.getType() != Material.AIR) return true;
                         }
                         return false;
                     });

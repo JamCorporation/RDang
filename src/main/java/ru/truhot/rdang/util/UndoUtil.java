@@ -28,10 +28,10 @@ import ru.truhot.rdang.util.logger.Logger;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 public class UndoUtil {
     private final ConfigManager configManager;
@@ -39,15 +39,15 @@ public class UndoUtil {
     private final Storage blockStorage;
     private final RDang plugin;
     private final SchemAction schemAction;
-    private final Set<BukkitRunnable> activeTimers = new HashSet<>();
+    private final Map<String, BukkitRunnable> activeTimers = new HashMap<>();
 
     public static class UndoResult {
-        public final int shulkerCount;
+        public final int chestCount;
         public final String worldName;
         public final boolean found;
 
-        public UndoResult(int shulkerCount, String worldName, boolean found) {
-            this.shulkerCount = shulkerCount;
+        public UndoResult(int chestCount, String worldName, boolean found) {
+            this.chestCount = chestCount;
             this.worldName = worldName;
             this.found = found;
         }
@@ -90,12 +90,16 @@ public class UndoUtil {
         BlockVector3 minPoint = BlockVector3.at(data.getInt("x"), data.getInt("y"), data.getInt("z"));
         blockStorage.getConfig().set(path, null);
         blockStorage.save();
+        BukkitRunnable existingTimer = activeTimers.remove(regionName);
+        if (existingTimer != null) {
+            try { existingTimer.cancel(); } catch (IllegalStateException ignored) {}
+        }
         int removedCount = 0;
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         RegionManager manager = container.get(BukkitAdapter.adapt(world));
         if (manager != null && manager.hasRegion(regionName)) {
             ProtectedRegion region = manager.getRegion(regionName);
-            removedCount = removeShulkers(getRegionCenter(region, world), world);
+            removedCount = removeChests(getRegionCenter(region, world), world);
             manager.removeRegion(regionName);
             if (removedCount > 0) shulkers.save();
         }
@@ -154,13 +158,17 @@ public class UndoUtil {
         long seconds = TimeUtil.parse(timeStr);
         String rawMsg = configManager.getMessages().getString("messages.actionbar_timer");
 
+        BukkitRunnable oldTask = activeTimers.remove(regionName);
+        if (oldTask != null) {
+            try { oldTask.cancel(); } catch (IllegalStateException ignored) {}
+        }
         BukkitRunnable task = new BukkitRunnable() {
             private long timeLeft = seconds;
             @Override
             public void run() {
                 if (timeLeft <= 0) {
                     performUndo(regionName);
-                    activeTimers.remove(this);
+                    activeTimers.remove(regionName);
                     this.cancel();
                     return;
                 }
@@ -177,12 +185,12 @@ public class UndoUtil {
                 timeLeft--;
             }
         };
-        activeTimers.add(task);
+        activeTimers.put(regionName, task);
         task.runTaskTimer(plugin, 0L, 20L);
     }
 
     public void shutdown() {
-        for (BukkitRunnable task : activeTimers) {
+        for (BukkitRunnable task : activeTimers.values()) {
             try {
                 task.cancel();
             } catch (IllegalStateException ignored) {}
@@ -190,7 +198,7 @@ public class UndoUtil {
         activeTimers.clear();
     }
 
-    private int removeShulkers(Location center, World world) {
+    private int removeChests(Location center, World world) {
         ConfigurationSection locs = shulkers.getConfig().getConfigurationSection("locs");
         if (locs == null) return 0;
         int radiusX = configManager.getRegion().getInt("region.size.x", 12);

@@ -46,7 +46,7 @@ public class UndoCommand implements CommandExecutor {
                 .replace("{region}", regionName)
                 .replace("{world}", result.worldName)));
         sender.sendMessage(MessageUtil.colorize(getMessage("undo.shulkers_deleted")
-                .replace("{shulker}", String.valueOf(result.shulkerCount))));
+                .replace("{shulker}", String.valueOf(result.chestCount))));
         return true;
     }
 
