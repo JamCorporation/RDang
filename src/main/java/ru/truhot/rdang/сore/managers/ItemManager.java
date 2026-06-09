@@ -1,6 +1,5 @@
 package ru.truhot.rdang.сore.managers;
 
-import lombok.Getter;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
@@ -18,7 +17,6 @@ import ru.truhot.rdang.util.logger.Logger;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Getter
 public class ItemManager {
 
     private ItemStack key;
@@ -138,7 +136,7 @@ public class ItemManager {
         }
         if (meta == null) return;
         if (!section.getBoolean("hideEnchantments")) {
-            meta.addEnchant(Enchantment.LUCK, 1, true);
+            meta.addEnchant(Enchantment.LUCK_OF_THE_SEA, 1, true);
         } else {
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
@@ -172,4 +170,29 @@ public class ItemManager {
         if (material != null) return material;
         return Material.getMaterial(materialName.toUpperCase().replace(' ', '_'));
     }
+
+    public ItemStack getKey() {
+        return key;
+    }
+
+    public ItemStack getCompass() {
+        return compass;
+    }
+
+    public int getSpawnChance() {
+        return spawnChance;
+    }
+
+    public int getSaveChance() {
+        return saveChance;
+    }
+
+    public boolean isHideEnchantments() {
+        return hideEnchantments;
+    }
+
+    public long getCompassCooldown() {
+        return compassCooldown;
+    }
+
 }

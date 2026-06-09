@@ -2,7 +2,6 @@ package ru.truhot.rdang.util;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
@@ -23,13 +22,19 @@ import java.time.Duration;
 public class UpdateUtil {
     private final RDang plugin;
     private final String url = "https://api.github.com/repos/Truhott/RDang/releases/latest";
-    @Getter
     private boolean updateAvailable = false;
-    @Getter
     private String latestVersion = null;
 
     public UpdateUtil(RDang plugin) {
         this.plugin = plugin;
+    }
+
+    public boolean isUpdateAvailable() {
+        return updateAvailable;
+    }
+
+    public String getLatestVersion() {
+        return latestVersion;
     }
 
     public void check() {

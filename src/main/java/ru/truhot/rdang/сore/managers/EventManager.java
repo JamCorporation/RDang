@@ -2,7 +2,6 @@ package ru.truhot.rdang.сore.managers;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import java.util.ArrayList;
@@ -69,7 +68,11 @@ public class EventManager implements Listener {
                     ConfigurationSection shulker = locsSection.getConfigurationSection(itemId);
                     Location shulkerLocation = shulker.getLocation("location");
                     if (isSameLocation(event.getClickedBlock().getLocation(), shulkerLocation) && !shulker.getBoolean("opened")) {
-                        ItemStack itemInHand = event.getPlayer().getItemInHand();
+                        if (!this.configManager.isNeedKey()) {
+                            ShulkerOpen(event, shulker, shulkerLocation, null);
+                            return;
+                        }
+                        ItemStack itemInHand = event.getItem();
                         if (itemInHand != null && itemInHand.getType() != Material.AIR && this.itemChecker.isValidKey(itemInHand)) {
                             ShulkerOpen(event, shulker, shulkerLocation, itemInHand);
                             return;
@@ -86,17 +89,25 @@ public class EventManager implements Listener {
         spawnEffect(loc, "open");
         playEffectSound(loc, "open");
         shulker.set("opened", true);
-        this.shulkers.save();
+        Bukkit.getScheduler().runTaskAsynchronously(configManager.getPlugin(), () -> this.shulkers.save());
         this.checkCleanup(loc);
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            this.configManager.getMessageManager().getOpenDungMessages(event.getPlayer().getName()).forEach(p::sendMessage);
+        if (this.configManager.isNeedKey()) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                this.configManager.getMessageManager().getOpenDungMessages(event.getPlayer().getName()).forEach(p::sendMessage);
+            }
+        } else {
+            List<String> noKeyMsg = this.configManager.getMessages().getStringList("messages.open_dung_no_key");
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                noKeyMsg.forEach(line -> p.sendMessage(MessageUtil.colorize(line.replace("{player}", event.getPlayer().getName()))));
+            }
         }
+        if (item == null) return;
         int chance = this.configManager.getItemManager().getSaveChance();
         if (Math.random() * 100.0 < chance) {
             event.getPlayer().sendMessage(this.configManager.getMessageManager().getSaveKeyMessage());
         } else {
             if (item.getAmount() > 1) item.setAmount(item.getAmount() - 1);
-            else event.getPlayer().setItemInHand(new ItemStack(Material.AIR));
+            else event.getPlayer().getInventory().setItemInMainHand(new ItemStack(Material.AIR));
         }
     }
 
@@ -109,6 +120,7 @@ public class EventManager implements Listener {
 
     @EventHandler
     public void onLoot(LootGenerateEvent e) {
+        if (!this.configManager.isNeedKey()) return;
         if (this.random.nextInt(100) < this.configManager.getItemManager().getSpawnChance()) {
             e.getLoot().add(this.configManager.getItemManager().getKey());
             if (e.getEntity() instanceof Player player) {
@@ -291,9 +303,17 @@ public class EventManager implements Listener {
         return l1.getBlockX() == l2.getBlockX() && l1.getBlockY() == l2.getBlockY() && l1.getBlockZ() == l2.getBlockZ() && l1.getWorld().getName().equals(l2.getWorld().getName());
     }
 
+    private String mapLegacyParticle(String type) {
+        return switch (type.toLowerCase()) {
+            case "totem" -> "TOTEM_OF_UNDYING";
+            case "smoke_normal" -> "SMOKE";
+            default -> type;
+        };
+    }
+
     private void spawnEffect(Location loc, String path) {
-        String type = this.configManager.getShulker().getString("particles." + path + ".type", "TOTEM");
-        Particle p = Particle.TOTEM;
+        String type = mapLegacyParticle(this.configManager.getShulker().getString("particles." + path + ".type", "TOTEM"));
+        Particle p = Particle.TOTEM_OF_UNDYING;
         try { p = Particle.valueOf(type.toUpperCase()); } catch (Exception ignored) {}
         int count = this.configManager.getShulker().getInt("particles." + path + ".count", 20);
         double ox = this.configManager.getShulker().getDouble("particles." + path + ".offsetX", 1.5);

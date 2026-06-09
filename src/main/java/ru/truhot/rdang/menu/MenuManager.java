@@ -6,6 +6,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerKickEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.storage.Storage;
@@ -83,5 +85,26 @@ public class MenuManager implements Listener {
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         lootEditMenu.onDrag(event);
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        cleanupPlayer(event.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onKick(PlayerKickEvent event) {
+        cleanupPlayer(event.getPlayer().getUniqueId());
+    }
+
+    public void cleanupPlayer(UUID playerId) {
+        CloseMessageFor.remove(playerId);
+        for (AbstractMenu menu : menus.values()) {
+            menu.onQuit(playerId);
+        }
+        AbstractMenu lootChance = menus.get(MenuType.LOOT_CHANCE);
+        if (lootChance instanceof LootChanceMenu lcm) {
+            lcm.clearSession(playerId);
+        }
     }
 }

@@ -14,7 +14,6 @@ import com.sk89q.worldedit.function.operation.ForwardExtentCopy;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
-import lombok.AllArgsConstructor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
@@ -29,10 +28,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 
-@AllArgsConstructor
 public class SchemAction {
     private final RDang plugin;
     private final ConfigManager configManager;
+
+    public SchemAction(RDang plugin, ConfigManager configManager) {
+        this.plugin = plugin;
+        this.configManager = configManager;
+    }
 
     public void spawnSchem(@NotNull Location location, @NotNull String fileName) {
         File schemFile = new File(plugin.getDataFolder() + "/schem/" + fileName);

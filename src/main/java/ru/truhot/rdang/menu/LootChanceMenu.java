@@ -97,6 +97,10 @@ public class LootChanceMenu extends AbstractMenu {
         player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.5f);
     }
 
+    public void clearSession(UUID playerId) {
+        session.remove(playerId);
+    }
+
     @Override
     public void close(Player player, InventoryCloseEvent event) {
         if (!(event.getInventory().getHolder() instanceof MenuHolder holder)) return;

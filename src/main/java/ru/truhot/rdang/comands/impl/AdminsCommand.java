@@ -8,7 +8,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
-import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.storage.Storage;
@@ -16,13 +15,19 @@ import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.сore.managers.ShulkerManager;
 import ru.truhot.rdang.сore.managers.LootManager;
 
-@RequiredArgsConstructor
 public class AdminsCommand implements CommandExecutor {
 
     private final ShulkerManager shulkerManager;
     private final LootManager lootManager;
     private final Storage shulkersStorage;
     private final ConfigManager configManager;
+
+    public AdminsCommand(ShulkerManager shulkerManager, LootManager lootManager, Storage shulkersStorage, ConfigManager configManager) {
+        this.shulkerManager = shulkerManager;
+        this.lootManager = lootManager;
+        this.shulkersStorage = shulkersStorage;
+        this.configManager = configManager;
+    }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {

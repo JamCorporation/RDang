@@ -1,16 +1,15 @@
 package ru.truhot.rdang.сore.managers;
 
-import lombok.Getter;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
 import org.bukkit.block.Biome;
+import org.bukkit.entity.Player;
 import org.bukkit.configuration.ConfigurationSection;
 import ru.truhot.rdang.config.ConfigManager;
 import java.util.Random;
 
-@Getter
 public class SpawnManager {
     private int minX = -2000, maxX = 2000, minZ = -2000, maxZ = 2000;
     private ConfigManager configManager;
@@ -28,6 +27,26 @@ public class SpawnManager {
         for (int attempt = 0; attempt < 100; attempt++) {
             int x = random.nextInt(maxX - minX + 1) + minX;
             int z = random.nextInt(maxZ - minZ + 1) + minZ;
+            int y = getSuitableHeight(world, x, z, random);
+            if (y == Integer.MIN_VALUE) continue;
+            Location loc = new Location(world, x, y, z);
+            if (isLocationSafe(loc) && hasSuitableBiome(loc)) {
+                return loc;
+            }
+        }
+        return null;
+    }
+
+    public Location findNearPlayerLocation(Player player, Random random) {
+        World world = player.getWorld();
+        int centerX = player.getLocation().getBlockX();
+        int centerZ = player.getLocation().getBlockZ();
+        int minR = 30, maxR = 150;
+        for (int attempt = 0; attempt < 100; attempt++) {
+            int angle = random.nextInt(360);
+            int distance = minR + random.nextInt(maxR - minR + 1);
+            int x = centerX + (int) (Math.cos(Math.toRadians(angle)) * distance);
+            int z = centerZ + (int) (Math.sin(Math.toRadians(angle)) * distance);
             int y = getSuitableHeight(world, x, z, random);
             if (y == Integer.MIN_VALUE) continue;
             Location loc = new Location(world, x, y, z);
@@ -122,5 +141,25 @@ public class SpawnManager {
             }
         }
         return isReplaceable(loc.getBlock().getType());
+    }
+
+    public int getMinX() {
+        return minX;
+    }
+
+    public int getMaxX() {
+        return maxX;
+    }
+
+    public int getMinZ() {
+        return minZ;
+    }
+
+    public int getMaxZ() {
+        return maxZ;
+    }
+
+    public ConfigManager getConfigManager() {
+        return configManager;
     }
 }

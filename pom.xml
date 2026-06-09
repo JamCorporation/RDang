@@ -12,7 +12,9 @@
   <name>Rdang</name>
 
   <properties>
-    <java.version>1.8</java.version>
+    <java.version>26</java.version>
+    <maven.compiler.source>26</maven.compiler.source>
+    <maven.compiler.target>26</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -21,16 +23,16 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>3.14.0</version>
         <configuration>
-          <source>16</source>
-          <target>16</target>
+          <release>26</release>
+          <fork>true</fork>
         </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.2.4</version>
+        <version>3.6.0</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -58,25 +60,39 @@
           <id>sonatype</id>
           <url>https://oss.sonatype.org/content/groups/public/</url>
       </repository>
+      <repository>
+          <id>enginehub</id>
+          <url>https://maven.enginehub.org/repo/</url>
+      </repository>
+      <repository>
+          <id>playpro</id>
+          <url>https://maven.playpro.com</url>
+      </repository>
   </repositories>
 
   <dependencies>
       <dependency>
-          <groupId>com.destroystokyo.paper</groupId>
+          <groupId>io.papermc.paper</groupId>
           <artifactId>paper-api</artifactId>
-          <version>1.16.5-R0.1-SNAPSHOT</version>
+          <version>[26.1.2.build,)</version>
           <scope>provided</scope>
       </dependency>
       <dependency>
-          <groupId>org.projectlombok</groupId>
-          <artifactId>lombok</artifactId>
-          <version>1.18.32</version>
+          <groupId>com.sk89q.worldedit</groupId>
+          <artifactId>worldedit-bukkit</artifactId>
+          <version>7.3.10</version>
           <scope>provided</scope>
       </dependency>
       <dependency>
-          <groupId>com.mojang</groupId>
-          <artifactId>authlib</artifactId>
-          <version>1.5.21</version>
+          <groupId>com.sk89q.worldguard</groupId>
+          <artifactId>worldguard-bukkit</artifactId>
+          <version>7.0.12</version>
+          <scope>provided</scope>
+      </dependency>
+      <dependency>
+          <groupId>net.coreprotect</groupId>
+          <artifactId>coreprotect</artifactId>
+          <version>22.4</version>
           <scope>provided</scope>
       </dependency>
   </dependencies>

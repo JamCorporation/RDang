@@ -1,6 +1,5 @@
 package ru.truhot.rdang.storage;
 
-import lombok.Getter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -10,7 +9,6 @@ import java.io.IOException;
 
 public class Storage {
     private File file;
-    @Getter
     private FileConfiguration config;
 
     public Storage(String name, JavaPlugin plugin) {
@@ -34,5 +32,9 @@ public class Storage {
 
     public void reloadConfig() {
         this.config = YamlConfiguration.loadConfiguration(file);
+    }
+
+    public FileConfiguration getConfig() {
+        return config;
     }
 }

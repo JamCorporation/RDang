@@ -3,18 +3,21 @@ package ru.truhot.rdang.comands.impl;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.config.MigrateConfig;
 import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.util.MessageUtil;
 
-@RequiredArgsConstructor
 public class MigrateCommand implements CommandExecutor {
 
     private final RDang plugin;
     private final ConfigManager configManager;
+
+    public MigrateCommand(RDang plugin, ConfigManager configManager) {
+        this.plugin = plugin;
+        this.configManager = configManager;
+    }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {

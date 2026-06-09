@@ -23,7 +23,7 @@ public class MainMenu extends AbstractMenu {
 
     private final MenuManager menuManager;
     private final ItemStack bottomGlass = pane(Material.GRAY_STAINED_GLASS_PANE);
-    private final ItemStack chain = pane(Material.CHAIN);
+    private final ItemStack chain = pane(Material.IRON_BARS);
     private final ItemStack dungeonsButton;
     private final ItemStack lootButton;
 

@@ -28,8 +28,10 @@ import ru.truhot.rdang.util.logger.Logger;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 public class UndoUtil {
     private final ConfigManager configManager;
@@ -37,6 +39,7 @@ public class UndoUtil {
     private final Storage blockStorage;
     private final RDang plugin;
     private final SchemAction schemAction;
+    private final Set<BukkitRunnable> activeTimers = new HashSet<>();
 
     public static class UndoResult {
         public final int shulkerCount;
@@ -151,12 +154,13 @@ public class UndoUtil {
         long seconds = TimeUtil.parse(timeStr);
         String rawMsg = configManager.getMessages().getString("messages.actionbar_timer");
 
-        new BukkitRunnable() {
+        BukkitRunnable task = new BukkitRunnable() {
             private long timeLeft = seconds;
             @Override
             public void run() {
                 if (timeLeft <= 0) {
                     performUndo(regionName);
+                    activeTimers.remove(this);
                     this.cancel();
                     return;
                 }
@@ -172,7 +176,18 @@ public class UndoUtil {
                 }
                 timeLeft--;
             }
-        }.runTaskTimer(plugin, 0L, 20L);
+        };
+        activeTimers.add(task);
+        task.runTaskTimer(plugin, 0L, 20L);
+    }
+
+    public void shutdown() {
+        for (BukkitRunnable task : activeTimers) {
+            try {
+                task.cancel();
+            } catch (IllegalStateException ignored) {}
+        }
+        activeTimers.clear();
     }
 
     private int removeShulkers(Location center, World world) {

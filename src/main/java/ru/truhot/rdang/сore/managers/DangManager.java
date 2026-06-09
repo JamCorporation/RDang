@@ -1,6 +1,5 @@
 package ru.truhot.rdang.сore.managers;
 
-import lombok.Getter;
 import org.bukkit.block.Biome;
 import org.bukkit.configuration.ConfigurationSection;
 import ru.truhot.rdang.data.DangData;
@@ -11,7 +10,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Getter
 public class DangManager {
 
     private final List<DangData> dangs = new ArrayList<>();
@@ -84,5 +82,13 @@ public class DangManager {
             }
         }
         return result;
+    }
+
+    public List<DangData> getDangs() {
+        return dangs;
+    }
+
+    public Map<String, DangData> getDangMap() {
+        return dangMap;
     }
 }

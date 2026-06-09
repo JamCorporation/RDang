@@ -1,6 +1,5 @@
 package ru.truhot.rdang.config;
 
-import lombok.Getter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -9,7 +8,6 @@ import ru.truhot.rdang.сore.managers.*;
 
 import java.io.File;
 
-@Getter
 public class ConfigManager {
 
     private final JavaPlugin plugin;
@@ -21,6 +19,7 @@ public class ConfigManager {
     private FileConfiguration schem;
     private FileConfiguration config;
     private FileConfiguration auto;
+    private boolean needKey = true;
 
     private final ItemManager itemManager;
     private final SpawnManager spawnManager;
@@ -52,6 +51,7 @@ public class ConfigManager {
         region = loadConfig("region.yml", true);
         schem = loadConfig("schem.yml", true);
         auto = loadConfig("auto.yml", true);
+        needKey = config.getBoolean("settings.need-key", true);
 
         itemManager.load(items.getConfigurationSection("items"));
         spawnManager.load(world.getConfigurationSection("spawn"), this);
@@ -75,6 +75,62 @@ public class ConfigManager {
             }
         }
         return YamlConfiguration.loadConfiguration(file);
+    }
+
+    public boolean isNeedKey() {
+        return needKey;
+    }
+
+    public JavaPlugin getPlugin() {
+        return plugin;
+    }
+
+    public FileConfiguration getItems() {
+        return items;
+    }
+
+    public FileConfiguration getWorld() {
+        return world;
+    }
+
+    public FileConfiguration getMessages() {
+        return messages;
+    }
+
+    public FileConfiguration getShulker() {
+        return shulker;
+    }
+
+    public FileConfiguration getRegion() {
+        return region;
+    }
+
+    public FileConfiguration getSchem() {
+        return schem;
+    }
+
+    public FileConfiguration getConfig() {
+        return config;
+    }
+
+    public FileConfiguration getAuto() {
+        return auto;
+    }
+
+    public ItemManager getItemManager() {
+        return itemManager;
+    }
+
+    public SpawnManager getSpawnManager() {
+        return spawnManager;
+    }
+
+    public MessageManager getMessageManager() {
+        return messageManager;
+    }
+
+    public DangManager getDangManager() {
+        return dangManager;
     }
 
     public WorldHeightManager getHeightManager() {

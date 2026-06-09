@@ -7,7 +7,6 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.permission.Permissions;
 
@@ -17,10 +16,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@RequiredArgsConstructor
 public class RTabCompleter implements TabCompleter {
 
     private final RDang plugin;
+
+    public RTabCompleter(RDang plugin) {
+        this.plugin = plugin;
+    }
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender,
@@ -70,12 +72,13 @@ public class RTabCompleter implements TabCompleter {
         if (subCommand.equals("spawn")) {
             if (args.length == 2) {
                 List<String> suggestions = new ArrayList<>();
+                suggestions.add("self");
                 suggestions.add("<количество>");
                 return suggestions.stream()
                         .filter(arg -> arg.toLowerCase().startsWith(args[1].toLowerCase()))
                         .collect(Collectors.toList());
             }
-            if (args.length == 3) {
+            if (args.length == 3 && !args[1].equalsIgnoreCase("self")) {
                 return Bukkit.getWorlds().stream()
                         .map(org.bukkit.World::getName)
                         .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))

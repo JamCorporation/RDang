@@ -9,8 +9,6 @@ import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -20,24 +18,59 @@ import ru.truhot.rdang.addshulkers.AddShulkers;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.data.DangData;
 import ru.truhot.rdang.schem.SchemAction;
+import ru.truhot.rdang.util.CoreProtectManager;
 import ru.truhot.rdang.util.UndoUtil;
+import ru.truhot.rdang.util.logger.Logger;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Random;
 
-@AllArgsConstructor
-@Getter
 public class DungActions {
     private final SchemAction schemAction;
     private final AddShulkers addShulkers;
     private final ConfigManager configManager;
     private final UndoUtil undoUtil;
+    private final CoreProtectManager coreProtectManager;
+
+    public DungActions(SchemAction schemAction, AddShulkers addShulkers, ConfigManager configManager, UndoUtil undoUtil, CoreProtectManager coreProtectManager) {
+        this.schemAction = schemAction;
+        this.addShulkers = addShulkers;
+        this.configManager = configManager;
+        this.undoUtil = undoUtil;
+        this.coreProtectManager = coreProtectManager;
+    }
+
+    public SchemAction getSchemAction() {
+        return schemAction;
+    }
+
+    public AddShulkers getAddShulkers() {
+        return addShulkers;
+    }
+
+    public ConfigManager getConfigManager() {
+        return configManager;
+    }
+
+    public UndoUtil getUndoUtil() {
+        return undoUtil;
+    }
+
+    public CoreProtectManager getCoreProtectManager() {
+        return coreProtectManager;
+    }
 
     public void spawn(@NotNull Location loc) {
         int minDist = configManager.getRegion().getInt("check.distance-dangs");
         boolean checkOtherRegions = configManager.getRegion().getBoolean("check.check_other_regions");
         if (checkDistance(loc, minDist)) return;
         if (checkOtherRegions && checkInside(loc)) return;
+        int radiusX = configManager.getRegion().getInt("region.size.x");
+        int radiusZ = configManager.getRegion().getInt("region.size.z");
+        if (coreProtectManager != null && coreProtectManager.isAvailable() && coreProtectManager.hasPlayerBuilds(loc, radiusX, radiusZ)) {
+            Logger.info("Данж не заспавнен: в радиусе найдены постройки игроков (" + loc.getBlockX() + ", " + loc.getBlockZ() + ").");
+            return;
+        }
         final World world = loc.getWorld();
         final List<DangData> dangDataList = configManager.getDangManager().getDangs();
         int freeId = getFreeId();
@@ -47,8 +80,6 @@ public class DungActions {
             DangData dangData = dangDataList.get(new Random().nextInt(dangDataList.size()));
             Biome currentBiome = world.getBiome(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
             if (dangData.getWorld().equals(world.getName()) && dangData.getBiome().contains(currentBiome)) {
-                int radiusX = configManager.getRegion().getInt("region.size.x");
-                int radiusZ = configManager.getRegion().getInt("region.size.z");
                 int minY = configManager.getRegion().getInt("region.height.min");
                 BlockVector3 minPoint = BlockVector3.at(loc.getBlockX() - radiusX, minY, loc.getBlockZ() - radiusZ);
                 int maxY = configManager.getRegion().getInt("region.height.max");

@@ -1,5 +1,6 @@
 package ru.truhot.rdang;
 
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.truhot.rdang.addshulkers.AddShulkers;
 import ru.truhot.rdang.comands.Command;
@@ -11,6 +12,7 @@ import ru.truhot.rdang.schem.SchemAction;
 import ru.truhot.rdang.shulker.BDangShulker;
 import ru.truhot.rdang.shulker.ShulkerActions;
 import ru.truhot.rdang.storage.Storage;
+import ru.truhot.rdang.util.CoreProtectManager;
 import ru.truhot.rdang.util.Metrics;
 import ru.truhot.rdang.util.UndoUtil;
 import ru.truhot.rdang.util.UpdateUtil;
@@ -21,6 +23,7 @@ import ru.truhot.rdang.сore.CoreFactory;
 import java.io.File;
 
 public final class RDang extends JavaPlugin {
+    private UndoUtil undoUtil;
 
     @Override
     public void onEnable() {
@@ -33,11 +36,13 @@ public final class RDang extends JavaPlugin {
         Storage items = new Storage("items.yml", this);
         Storage blockStorage = new Storage("block.yml", this);
         SchemAction schemAction = new SchemAction(this, configManager);
-        UndoUtil undoUtil = new UndoUtil(configManager, shulkers, blockStorage, this, schemAction);
+        this.undoUtil = new UndoUtil(configManager, shulkers, blockStorage, this, schemAction);
         MainCore mainCore = CoreFactory.createDang(items, shulkers, configManager, undoUtil);
         ShulkerActions shulkerActions = new BDangShulker(mainCore);
         AddShulkers addShulkers = new AddShulkers(this, shulkerActions);
-        DungActions dungActions = new DungActions(schemAction, addShulkers, configManager, undoUtil);
+        CoreProtectManager coreProtectManager = new CoreProtectManager();
+        coreProtectManager.init();
+        DungActions dungActions = new DungActions(schemAction, addShulkers, configManager, undoUtil, coreProtectManager);
         MenuManager menuManager = new MenuManager(configManager, items, shulkers, blockStorage, this, mainCore.getLootManager());
         UpdateUtil updateUtil = new UpdateUtil(this);
         if (getConfig().getBoolean("settings.update-check")) {updateUtil.check();}
@@ -58,5 +63,7 @@ public final class RDang extends JavaPlugin {
     @Override
     public void onDisable() {
         Logger.info("отключен!");
+        if (undoUtil != null) undoUtil.shutdown();
+        Bukkit.getScheduler().cancelTasks(this);
     }
 }

@@ -4,18 +4,21 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.menu.MenuManager;
 import ru.truhot.rdang.menu.MenuType;
 import ru.truhot.rdang.util.MessageUtil;
 
-@RequiredArgsConstructor
 public class MenuCommand implements CommandExecutor {
 
     private final ConfigManager configManager;
     private final MenuManager menuManager;
+
+    public MenuCommand(ConfigManager configManager, MenuManager menuManager) {
+        this.configManager = configManager;
+        this.menuManager = menuManager;
+    }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {

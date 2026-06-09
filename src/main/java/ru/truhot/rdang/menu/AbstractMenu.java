@@ -1,6 +1,5 @@
 package ru.truhot.rdang.menu;
 
-import lombok.RequiredArgsConstructor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -14,11 +13,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@RequiredArgsConstructor
 public abstract class AbstractMenu {
 
     protected final ConfigManager configManager;
     protected final RDang plugin;
+
+    public AbstractMenu(ConfigManager configManager, RDang plugin) {
+        this.configManager = configManager;
+        this.plugin = plugin;
+    }
     private final Map<UUID, Inventory> openInventories = new HashMap<>();
 
     public abstract void openMenu(Player player, int page);
@@ -46,6 +49,10 @@ public abstract class AbstractMenu {
     public void onClick(Player player, InventoryClickEvent event) {
         if (!ownsInventory(event)) return;
         onMenuClick(player, event);
+    }
+
+    public void onQuit(UUID playerId) {
+        openInventories.remove(playerId);
     }
 
     private boolean ownsInventory(InventoryClickEvent event) {

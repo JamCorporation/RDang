@@ -1,7 +1,5 @@
 package ru.truhot.rdang.сore;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.event.Listener;
@@ -14,8 +12,6 @@ import ru.truhot.rdang.сore.managers.ItemChecker;
 import ru.truhot.rdang.сore.managers.LootManager;
 import ru.truhot.rdang.сore.managers.ShulkerManager;
 
-@Getter
-@RequiredArgsConstructor
 public class MainCore implements Listener {
     private final Storage items;
     private final Storage shulkers;
@@ -24,6 +20,44 @@ public class MainCore implements Listener {
     private final ShulkerManager shulkerManager;
     private final ItemChecker itemChecker;
     private final EventManager eventHandler;
+
+    public MainCore(Storage items, Storage shulkers, ConfigManager configManager, LootManager lootManager, ShulkerManager shulkerManager, ItemChecker itemChecker, EventManager eventHandler) {
+        this.items = items;
+        this.shulkers = shulkers;
+        this.configManager = configManager;
+        this.lootManager = lootManager;
+        this.shulkerManager = shulkerManager;
+        this.itemChecker = itemChecker;
+        this.eventHandler = eventHandler;
+    }
+
+    public Storage getItems() {
+        return items;
+    }
+
+    public Storage getShulkers() {
+        return shulkers;
+    }
+
+    public ConfigManager getConfigManager() {
+        return configManager;
+    }
+
+    public LootManager getLootManager() {
+        return lootManager;
+    }
+
+    public ShulkerManager getShulkerManager() {
+        return shulkerManager;
+    }
+
+    public ItemChecker getItemChecker() {
+        return itemChecker;
+    }
+
+    public EventManager getEventHandler() {
+        return eventHandler;
+    }
 
     public void fillRandomLoot(Inventory inventory) {
         lootManager.fillRandomLoot(inventory);

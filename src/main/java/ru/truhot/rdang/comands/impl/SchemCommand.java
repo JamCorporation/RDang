@@ -7,7 +7,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
@@ -17,13 +16,20 @@ import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
 import java.io.File;
 
-@RequiredArgsConstructor
 public class SchemCommand implements CommandExecutor {
     private final DungActions dungActions;
     private final RDang plugin;
     private final ConfigManager configManager;
     private final Storage shulkers;
     private final UndoUtil undoUtil;
+
+    public SchemCommand(DungActions dungActions, RDang plugin, ConfigManager configManager, Storage shulkers, UndoUtil undoUtil) {
+        this.dungActions = dungActions;
+        this.plugin = plugin;
+        this.configManager = configManager;
+        this.shulkers = shulkers;
+        this.undoUtil = undoUtil;
+    }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {

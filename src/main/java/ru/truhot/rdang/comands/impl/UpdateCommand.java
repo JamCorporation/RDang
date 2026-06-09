@@ -4,19 +4,23 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
-import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UpdateUtil;
 
-@RequiredArgsConstructor
 public class UpdateCommand implements CommandExecutor {
 
     private final RDang plugin;
     private final ConfigManager configManager;
     private final UpdateUtil updateUtil;
+
+    public UpdateCommand(RDang plugin, ConfigManager configManager, UpdateUtil updateUtil) {
+        this.plugin = plugin;
+        this.configManager = configManager;
+        this.updateUtil = updateUtil;
+    }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {

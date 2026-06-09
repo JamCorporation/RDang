@@ -1,6 +1,5 @@
 package ru.truhot.rdang.addshulkers;
 
-import lombok.AllArgsConstructor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -8,10 +7,14 @@ import org.bukkit.scheduler.BukkitRunnable;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.shulker.ShulkerActions;
 
-@AllArgsConstructor
 public class AddShulkers {
     private final RDang plugin;
     private final ShulkerActions actions;
+
+    public AddShulkers(RDang plugin, ShulkerActions actions) {
+        this.plugin = plugin;
+        this.actions = actions;
+    }
 
     public void addShulkers(Location center, int radiusX, int radiusZ, int minY, int maxY) {
         int startX = center.getBlockX() - radiusX;

@@ -1,12 +1,10 @@
 package ru.truhot.rdang.сore.managers;
 
-import lombok.Getter;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import java.util.HashMap;
 import java.util.Map;
 
-@Getter
 public class WorldHeightManager {
     private final Map<String, WorldHeightConfig> worldHeights = new HashMap<>();
     private WorldHeightConfig defaultNormal;
@@ -70,6 +68,22 @@ public class WorldHeightManager {
         };
     }
 
+    public Map<String, WorldHeightConfig> getWorldHeights() {
+        return worldHeights;
+    }
+
+    public WorldHeightConfig getDefaultNormal() {
+        return defaultNormal;
+    }
+
+    public WorldHeightConfig getDefaultNether() {
+        return defaultNether;
+    }
+
+    public WorldHeightConfig getDefaultEnd() {
+        return defaultEnd;
+    }
+
     public WorldHeightConfig getWorldHeightConfig(World world) {
         String worldName = world.getName().toLowerCase();
         if (worldHeights.containsKey(worldName)) return worldHeights.get(worldName);
@@ -80,7 +94,6 @@ public class WorldHeightManager {
         };
     }
 
-    @Getter
     public static class WorldHeightConfig {
         private final String worldType;
         private String worldName;
@@ -101,6 +114,26 @@ public class WorldHeightManager {
 
         public void setWorldName(String worldName) {
             this.worldName = worldName;
+        }
+
+        public String getWorldType() {
+            return worldType;
+        }
+
+        public String getWorldName() {
+            return worldName;
+        }
+
+        public int getMinY() {
+            return minY;
+        }
+
+        public int getMaxY() {
+            return maxY;
+        }
+
+        public boolean isUseDefaultAlgorithm() {
+            return useDefaultAlgorithm;
         }
     }
 }

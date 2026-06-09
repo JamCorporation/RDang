@@ -1,6 +1,5 @@
 package ru.truhot.rdang.сore.managers;
 
-import lombok.Getter;
 import org.bukkit.configuration.ConfigurationSection;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.logger.Logger;
@@ -8,7 +7,6 @@ import ru.truhot.rdang.util.logger.Logger;
 import java.util.ArrayList;
 import java.util.List;
 
-@Getter
 public class MessageManager {
     private List<String> openDungMessages;
     private String saveKeyMessage;
@@ -40,5 +38,13 @@ public class MessageManager {
             formatted.add(message.replace("{player}", playerName));
         }
         return formatted;
+    }
+
+    public String getSaveKeyMessage() {
+        return saveKeyMessage;
+    }
+
+    public List<String> getClosedDungMessages() {
+        return closedDungMessages;
     }
 }

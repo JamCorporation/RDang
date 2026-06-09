@@ -5,15 +5,17 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import lombok.RequiredArgsConstructor;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.permission.Permissions;
 import ru.truhot.rdang.util.MessageUtil;
 
-@RequiredArgsConstructor
 public class GiveCommand {
 
     private final ConfigManager configManager;
+
+    public GiveCommand(ConfigManager configManager) {
+        this.configManager = configManager;
+    }
 
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length < 3 || args.length > 4) {

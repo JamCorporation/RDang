@@ -1,6 +1,5 @@
 package ru.truhot.rdang.сore.managers;
 
-import lombok.RequiredArgsConstructor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -8,7 +7,6 @@ import ru.truhot.rdang.storage.Storage;
 
 import java.util.*;
 
-@RequiredArgsConstructor
 public class LootManager {
 
     public static final int MAX_PAGES = 45;
@@ -19,6 +17,10 @@ public class LootManager {
 
     private final Storage items;
     private final Random random = new Random();
+
+    public LootManager(Storage items) {
+        this.items = items;
+    }
 
     public void fillRandomLoot(Inventory inventory) {
         List<LootEntry> pool = getAllLoot();
