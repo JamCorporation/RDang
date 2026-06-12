@@ -74,12 +74,17 @@ public class SchemCommand implements CommandExecutor {
             int minY = configManager.getRegion().getInt("region.height.min", -10);
             int maxY = configManager.getRegion().getInt("region.height.max", 10);
 
-            dungActions.getSchemAction().createBackup(spawnLocation, regionName, () -> {
+            dungActions.getSchemAction().createBackup(spawnLocation, regionName, (success) -> {
+                if (!success) {
+                    player.sendMessage(MessageUtil.colorize("&cНе удалось создать бэкап. Спавн отменен."));
+                    return;
+                }
                 undoUtil.saveDungeonData(regionName, spawnLocation.getWorld(),
                         BlockVector3.at(spawnLocation.getBlockX() - rx, minY, spawnLocation.getBlockZ() - rz));
-                dungActions.getSchemAction().spawnSchem(spawnLocation, fileNameOnly);
-                dungActions.getAddChests().addChests(spawnLocation, rx, rz, minY, maxY);
-                dungActions.buildRegion(spawnLocation.getBlockX(), spawnLocation.getBlockZ(), spawnLocation.getWorld(), freeId);
+                dungActions.getSchemAction().spawnSchem(spawnLocation, fileNameOnly, () -> {
+                    dungActions.getAddChests().addChests(spawnLocation, rx, rz, minY, maxY);
+                    dungActions.buildRegion(spawnLocation.getBlockX(), spawnLocation.getBlockZ(), spawnLocation.getWorld(), freeId);
+                });
 
                 player.sendMessage(MessageUtil.colorize(getMessage("schem.success")
                         .replace("{schem}", fileNameOnly)

@@ -13,6 +13,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import ru.truhot.rdang.addchests.AddChests;
 import ru.truhot.rdang.config.ConfigManager;
@@ -61,38 +62,60 @@ public class DungActions {
     }
 
     public void spawn(@NotNull Location loc) {
-        int minDist = configManager.getRegion().getInt("check.distance-dangs");
-        boolean checkOtherRegions = configManager.getRegion().getBoolean("check.check_other_regions");
-        if (checkDistance(loc, minDist)) return;
-        if (checkOtherRegions && checkInside(loc)) return;
-        int radiusX = configManager.getRegion().getInt("region.size.x");
-        int radiusZ = configManager.getRegion().getInt("region.size.z");
-        if (coreProtectManager != null && coreProtectManager.isAvailable() && coreProtectManager.hasPlayerBuilds(loc, radiusX, radiusZ)) {
-            Logger.info("Данж не заспавнен: в радиусе найдены постройки игроков (" + loc.getBlockX() + ", " + loc.getBlockZ() + ").");
-            return;
-        }
         final World world = loc.getWorld();
         final List<DangData> dangDataList = configManager.getDangManager().getDangs();
-        int freeId = getFreeId();
-        String nameFormat = configManager.getRegion().getString("region.name_format");
-        String regionName = nameFormat.replace("{id}", String.valueOf(freeId));
-        for (int i = 0; i < 20; i++) {
-            DangData dangData = dangDataList.get(new Random().nextInt(dangDataList.size()));
-            Biome currentBiome = world.getBiome(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
-            if (dangData.getWorld().equals(world.getName()) && dangData.getBiome().contains(currentBiome)) {
-                int minY = configManager.getRegion().getInt("region.height.min");
-                BlockVector3 minPoint = BlockVector3.at(loc.getBlockX() - radiusX, minY, loc.getBlockZ() - radiusZ);
-                int maxY = configManager.getRegion().getInt("region.height.max");
-                DangData selected = dangData;
-                schemAction.createBackup(loc, regionName, () -> {
-                    undoUtil.saveDungeonData(regionName, world, minPoint);
-                    schemAction.spawnSchem(loc, selected.getFileName());
-                    addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
-                    buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
-                });
-                return;
+        if (dangDataList.isEmpty()) return;
+
+        final Biome currentBiome = world.getBiome(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+        final int freeId = getFreeId();
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                int minDist = configManager.getRegion().getInt("check.distance-dangs");
+                boolean checkOtherRegions = configManager.getRegion().getBoolean("check.check_other_regions");
+                if (checkDistance(loc, minDist)) return;
+                if (checkOtherRegions && checkInside(loc)) return;
+
+                int radiusX = configManager.getRegion().getInt("region.size.x");
+                int radiusZ = configManager.getRegion().getInt("region.size.z");
+                if (coreProtectManager != null && coreProtectManager.isAvailable() && coreProtectManager.hasPlayerBuilds(loc, radiusX, radiusZ)) {
+                    Logger.info("Данж не заспавнен: в радиусе найдены постройки игроков (" + loc.getBlockX() + ", " + loc.getBlockZ() + ").");
+                    return;
+                }
+
+                String nameFormat = configManager.getRegion().getString("region.name_format");
+                String regionName = nameFormat.replace("{id}", String.valueOf(freeId));
+
+                for (int i = 0; i < 20; i++) {
+                    DangData dangData = dangDataList.get(new Random().nextInt(dangDataList.size()));
+                    if (dangData.getWorld().equals(world.getName()) && dangData.getBiome().contains(currentBiome)) {
+                        int minY = configManager.getRegion().getInt("region.height.min");
+                        int maxY = configManager.getRegion().getInt("region.height.max");
+                        BlockVector3 minPoint = BlockVector3.at(loc.getBlockX() - radiusX, minY, loc.getBlockZ() - radiusZ);
+                        DangData selected = dangData;
+
+                        new BukkitRunnable() {
+                            @Override
+                            public void run() {
+                                schemAction.createBackup(loc, regionName, (success) -> {
+                                    if (!success) {
+                                        Logger.error("Спавн данжа отменен: не удалось создать бэкап ландшафта.");
+                                        return;
+                                    }
+                                    undoUtil.saveDungeonData(regionName, world, minPoint);
+                                    schemAction.spawnSchem(loc, selected.getFileName(), () -> {
+                                        addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
+                                        buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
+                                    });
+                                });
+                            }
+                        }.runTask(configManager.getPlugin());
+                        return;
+                    }
+                }
             }
-        }
+        }.runTaskAsynchronously(configManager.getPlugin());
     }
 
     public String buildRegion(int x, int z, World worldBukkit, int id) {
@@ -109,31 +132,45 @@ public class DungActions {
                 final BlockVector3 minPoint = BlockVector3.at(x - radiusX, minY, z - radiusZ);
                 final BlockVector3 maxPoint = BlockVector3.at(x + radiusX, maxY, z + radiusZ);
                 final ProtectedCuboidRegion region = new ProtectedCuboidRegion(regionName, minPoint, maxPoint);
-                applyFlags(region);
+                synchronized (this) {
+                    applyFlags(region);
+                }
                 regionManager.addRegion(region);
             }
         }
         return regionName;
     }
 
-    public int getFreeId() {
+    private final java.util.concurrent.atomic.AtomicInteger lastId = new java.util.concurrent.atomic.AtomicInteger(-1);
+
+    public synchronized int getFreeId() {
+        if (lastId.get() == -1) {
+            lastId.set(findMaxIdInWorldGuard());
+        }
+        return lastId.incrementAndGet();
+    }
+
+    private int findMaxIdInWorldGuard() {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-        if (container == null) return 1;
-        String nameFormat = configManager.getRegion().getString("region.name_format");
-        int id = 1;
-        while (true) {
-            String regionName = nameFormat.replace("{id}", String.valueOf(id));
-            boolean isFree = true;
-            for (World world : Bukkit.getWorlds()) {
-                RegionManager regionManager = container.get(BukkitAdapter.adapt(world));
-                if (regionManager != null && regionManager.hasRegion(regionName)) {
-                    isFree = false;
-                    break;
+        if (container == null) return 0;
+        String nameFormat = configManager.getRegion().getString("region.name_format", "dang_{id}");
+        String prefix = nameFormat.split("\\{id\\}")[0].toLowerCase();
+        int max = 0;
+        for (World world : Bukkit.getWorlds()) {
+            RegionManager manager = container.get(BukkitAdapter.adapt(world));
+            if (manager == null) continue;
+            for (String id : manager.getRegions().keySet()) {
+                if (id.toLowerCase().startsWith(prefix)) {
+                    try {
+                        String numPart = id.substring(prefix.length()).replaceAll("[^0-9]", "");
+                        if (!numPart.isEmpty()) {
+                            max = Math.max(max, Integer.parseInt(numPart));
+                        }
+                    } catch (NumberFormatException ignored) {}
                 }
             }
-            if (isFree) return id;
-            id++;
         }
+        return max;
     }
 
     private void applyFlags(ProtectedCuboidRegion region) {

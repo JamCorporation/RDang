@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 public class UndoUtil {
     private final ConfigManager configManager;
@@ -66,57 +67,105 @@ public class UndoUtil {
     }
 
     public void saveDungeonData(String regionName, World world, BlockVector3 minPoint) {
-        String path = "history." + regionName;
-        ConfigurationSection section = blockStorage.getConfig().createSection(path);
-        section.set("world", world.getName());
-        section.set("x", minPoint.getX());
-        section.set("y", minPoint.getY());
-        section.set("z", minPoint.getZ());
+        synchronized (blockStorage) {
+            String path = "history." + regionName;
+            ConfigurationSection section = blockStorage.getConfig().createSection(path);
+            section.set("world", world.getName());
+            section.set("x", minPoint.getX());
+            section.set("y", minPoint.getY());
+            section.set("z", minPoint.getZ());
+            blockStorage.save();
+        }
+    }
+
+    public void performUndo(String regionName, Consumer<UndoResult> callback) {
         new BukkitRunnable() {
             @Override
             public void run() {
-                blockStorage.save();
+                String path = "history." + regionName;
+                ConfigurationSection data = blockStorage.getConfig().getConfigurationSection(path);
+                if (data == null) {
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            callback.accept(new UndoResult(0, "Неизвестно", false));
+                        }
+                    }.runTask(plugin);
+                    return;
+                }
+
+                String worldName = data.getString("world");
+                World world = Bukkit.getWorld(Objects.requireNonNull(worldName));
+                if (world == null) {
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            callback.accept(new UndoResult(0, worldName, false));
+                        }
+                    }.runTask(plugin);
+                    return;
+                }
+
+                BlockVector3 minPoint = BlockVector3.at(data.getInt("x"), data.getInt("y"), data.getInt("z"));
+
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        BukkitRunnable existingTimer = activeTimers.remove(regionName);
+                        if (existingTimer != null) {
+                            try { existingTimer.cancel(); } catch (IllegalStateException ignored) {}
+                        }
+
+                        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+                        RegionManager manager = container.get(BukkitAdapter.adapt(world));
+                        ProtectedRegion region = (manager != null) ? manager.getRegion(regionName) : null;
+
+                        final ProtectedRegion finalRegion = region;
+                        final RegionManager finalManager = manager;
+
+                        restoreLandscape(regionName, world, minPoint, () -> {
+                            new BukkitRunnable() {
+                                @Override
+                                public void run() {
+                                    int removedCount = 0;
+                                    if (finalRegion != null) {
+                                        removedCount = removeChests(finalRegion, world);
+                                        if (finalManager != null) {
+                                            finalManager.removeRegion(regionName);
+                                        }
+                                    }
+
+                                    // Удаляем запись из истории ТОЛЬКО после попытки восстановления
+                                    blockStorage.getConfig().set(path, null);
+                                    blockStorage.save();
+                                    
+                                    if (removedCount > 0) {
+                                        shulkers.save();
+                                    }
+
+                                    final int finalRemovedCount = removedCount;
+                                    callback.accept(new UndoResult(finalRemovedCount, worldName, true));
+                                }
+                            }.runTask(plugin);
+                        });
+                    }
+                }.runTask(plugin);
             }
         }.runTaskAsynchronously(plugin);
     }
 
-    public UndoResult performUndo(String regionName) {
-        String path = "history." + regionName;
-        ConfigurationSection data = blockStorage.getConfig().getConfigurationSection(path);
-        if (data == null) return new UndoResult(0, "Неизвестно", false);
-        String worldName = data.getString("world");
-        World world = Bukkit.getWorld(Objects.requireNonNull(worldName));
-        if (world == null) return new UndoResult(0, worldName, false);
-        BlockVector3 minPoint = BlockVector3.at(data.getInt("x"), data.getInt("y"), data.getInt("z"));
-        blockStorage.getConfig().set(path, null);
-        blockStorage.save();
-        BukkitRunnable existingTimer = activeTimers.remove(regionName);
-        if (existingTimer != null) {
-            try { existingTimer.cancel(); } catch (IllegalStateException ignored) {}
-        }
-        int removedCount = 0;
-        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-        RegionManager manager = container.get(BukkitAdapter.adapt(world));
-        if (manager != null && manager.hasRegion(regionName)) {
-            ProtectedRegion region = manager.getRegion(regionName);
-            removedCount = removeChests(getRegionCenter(region, world), world);
-            manager.removeRegion(regionName);
-            if (removedCount > 0) shulkers.save();
-        }
-        restoreLandscape(regionName, world, minPoint);
-        return new UndoResult(removedCount, worldName, true);
-    }
-
-    private void restoreLandscape(String regionName, World world, BlockVector3 minPoint) {
+    private void restoreLandscape(String regionName, World world, BlockVector3 minPoint, Runnable onComplete) {
         File backupFile = schemAction.backupFile(regionName);
         if (!backupFile.exists()) {
-            Logger.warn("Бэкап не найден, ландшафт не восстановлен: " + regionName);
+            Logger.warn("Бэкап не найден для данжа: " + regionName + ". Пропускаем восстановление блоков.");
+            if (onComplete != null) onComplete.run();
             return;
         }
 
         ClipboardFormat format = ClipboardFormats.findByFile(backupFile);
         if (format == null) {
-            Logger.error("Неизвестный формат бэкапа: " + regionName);
+            Logger.error("Неизвестный формат бэкапа для: " + regionName);
+            if (onComplete != null) onComplete.run();
             return;
         }
 
@@ -127,27 +176,45 @@ public class UndoUtil {
                      ClipboardReader reader = format.getReader(fis)) {
                     Clipboard clipboard = reader.read();
                     BlockVector3 offset = minPoint.subtract(clipboard.getMinimumPoint());
-                    new BukkitRunnable() {
+                    boolean isFawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
+
+                    BukkitRunnable pasteTask = new BukkitRunnable() {
                         @Override
                         public void run() {
-                            boolean restored = false;
                             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
                                 ForwardExtentCopy copy = new ForwardExtentCopy(
                                         clipboard, clipboard.getRegion(), editSession, clipboard.getMinimumPoint().add(offset)
                                 );
                                 copy.setCopyingEntities(false);
                                 Operations.complete(copy);
-                                restored = true;
+                                editSession.flushSession();
                             } catch (Exception e) {
-                                Logger.error("Ошибка восстановления ландшафта: " + regionName);
-                            }
-                            if (restored && backupFile.exists() && !backupFile.delete()) {
-                                Logger.warn("Не удалось удалить бэкап после восстановления: " + regionName);
+                                Logger.error("Ошибка при восстановлении блоков для данжа " + regionName + ": " + e.getMessage());
+                            } finally {
+                                // Удаляем файл бэкапа только после успешной или завершенной попытки вставки
+                                if (backupFile.exists() && !backupFile.delete()) {
+                                    Logger.warn("Не удалось удалить файл бэкапа: " + backupFile.getName());
+                                }
+                                if (onComplete != null) {
+                                    new BukkitRunnable() {
+                                        @Override
+                                        public void run() {
+                                            onComplete.run();
+                                        }
+                                    }.runTask(plugin);
+                                }
                             }
                         }
-                    }.runTask(plugin);
+                    };
+
+                    if (isFawe) {
+                        pasteTask.runTaskAsynchronously(plugin);
+                    } else {
+                        pasteTask.runTask(plugin);
+                    }
                 } catch (Exception e) {
-                    Logger.error("Ошибка чтения бэкапа: " + regionName);
+                    Logger.error("Ошибка чтения файла бэкапа для " + regionName + ": " + e.getMessage());
+                    if (onComplete != null) onComplete.run();
                 }
             }
         }.runTaskAsynchronously(plugin);
@@ -167,7 +234,7 @@ public class UndoUtil {
             @Override
             public void run() {
                 if (timeLeft <= 0) {
-                    performUndo(regionName);
+                    performUndo(regionName, result -> {});
                     activeTimers.remove(regionName);
                     this.cancel();
                     return;
@@ -198,21 +265,24 @@ public class UndoUtil {
         activeTimers.clear();
     }
 
-    private int removeChests(Location center, World world) {
+    private int removeChests(ProtectedRegion region, World world) {
         ConfigurationSection locs = shulkers.getConfig().getConfigurationSection("locs");
         if (locs == null) return 0;
-        int radiusX = configManager.getRegion().getInt("region.size.x", 12);
-        int radiusZ = configManager.getRegion().getInt("region.size.z", 12);
-        List<String> toRemove = locs.getKeys(false).stream()
-                .filter(key -> {
-                    Location loc = locs.getLocation(key + ".location");
-                    return loc != null &&
-                            loc.getWorld().getName().equals(world.getName()) &&
-                            Math.abs(loc.getBlockX() - center.getBlockX()) <= radiusX &&
-                            Math.abs(loc.getBlockZ() - center.getBlockZ()) <= radiusZ;
-                })
-                .toList();
-        toRemove.forEach(key -> locs.set(key, null));
+        
+        List<String> toRemove = new java.util.ArrayList<>();
+        for (String key : locs.getKeys(false)) {
+            Location loc = locs.getLocation(key + ".location");
+            if (loc != null && loc.getWorld().getName().equals(world.getName())) {
+                if (region.contains(BukkitAdapter.asBlockVector(loc))) {
+                    toRemove.add(key);
+                }
+            }
+        }
+        
+        for (String key : toRemove) {
+            locs.set(key, null);
+        }
+        
         return toRemove.size();
     }
 

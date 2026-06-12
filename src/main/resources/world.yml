@@ -22,10 +22,6 @@ dang:
     biome: plains;sunflower_plains;savanna
     world: world
   5:
-    fileName: nice-castle.schem
-    biome: plains;sunflower_plains;savanna;birch_forest;dark_forest;flower_forest;cherry_grove
-    world: world
-  6:
     fileName: anvilstead.schem
     biome: desert;badlands;eroded_badlands;wooded_badlands
     world: world

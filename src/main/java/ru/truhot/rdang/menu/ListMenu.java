@@ -13,6 +13,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitRunnable;
 import ru.truhot.rdang.RDang;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.storage.Storage;
@@ -126,15 +127,26 @@ public class ListMenu extends AbstractMenu {
             List<String> allIds = getIds();
             if (allIds.isEmpty()) return;
             UndoUtil undoUtil = new UndoUtil(configManager, shulkers, blockStorage, plugin);
-            int count = 0;
-            for (String rId : allIds) {
-                UndoUtil.UndoResult res = undoUtil.performUndo(rId);
-                if (res.found) count++;
-            }
-            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 0.5f, 1.2f);
-
-            player.sendMessage(MessageUtil.colorize("&7[&#6AFE76☑&7] &fУспешно удалено &#557c93" + count + " &fданжей."));
+            player.sendMessage(MessageUtil.colorize("&aЗапуск удаления всех данжей..."));
             player.closeInventory();
+
+            new BukkitRunnable() {
+                int count = 0;
+                int processed = 0;
+                @Override
+                public void run() {
+                    for (String rId : allIds) {
+                        undoUtil.performUndo(rId, res -> {
+                            if (res.found) count++;
+                            processed++;
+                            if (processed == allIds.size()) {
+                                player.sendMessage(MessageUtil.colorize("&7[&#6AFE76☑&7] &fУспешно удалено &#557c93" + count + " &fданжей."));
+                                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 0.5f, 1.2f);
+                            }
+                        });
+                    }
+                }
+            }.runTask(plugin);
             return;
         }
         if (slot == NEXT_PAGE_SLOT) {
@@ -160,19 +172,18 @@ public class ListMenu extends AbstractMenu {
                     player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 0.6f, 1.0f);
                     player.closeInventory();
                     teleportUtil.teleport(player, rId);
-                }
-                else if (e.isLeftClick()) {
-                    UndoUtil.UndoResult res = new UndoUtil(configManager, shulkers, blockStorage, plugin).performUndo(rId);
+                } else if (e.isLeftClick()) {
+                    new UndoUtil(configManager, shulkers, blockStorage, plugin).performUndo(rId, res -> {
+                        if (res.found) {
+                            player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_BREAK, 0.5f, 1.5f);
+                            openMenu(player, currentPage);
+                        } else {
+                            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
+                        }
 
-                    if (res.found) {
-                        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_BREAK, 0.5f, 1.5f);
-                        openMenu(player, currentPage);
-                    } else {
-                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
-                    }
-
-                    String msg = configManager.getMessages().getString(res.found ? "messages.undo.region_deleted" : "messages.undo.region_not_found");
-                    player.sendMessage(MessageUtil.getFormatted(msg, getNumber(rId), rId, res.worldName));
+                        String msg = configManager.getMessages().getString(res.found ? "messages.undo.region_deleted" : "messages.undo.region_not_found");
+                        player.sendMessage(MessageUtil.getFormatted(msg, getNumber(rId), rId, res.worldName));
+                    });
                 }
             }
         }
@@ -199,19 +210,27 @@ public class ListMenu extends AbstractMenu {
     }
 
     private int getNumber(String id) {
+        if (id == null || id.isEmpty()) return 0;
         String lowered = id.toLowerCase();
-        if (lowered.startsWith(prefix) && lowered.endsWith(suffix)) {
-            int start = prefix.length();
-            int end = lowered.length() - suffix.length();
-            if (start <= end) {
-                String numberPart = id.substring(start, end).trim();
-                if (!numberPart.isEmpty() && numberPart.chars().allMatch(Character::isDigit)) {
-                    return Integer.parseInt(numberPart);
+        try {
+            if (!prefix.isEmpty() && lowered.startsWith(prefix)) {
+                String remainder = id.substring(prefix.length());
+                if (!suffix.isEmpty() && remainder.toLowerCase().endsWith(suffix)) {
+                    remainder = remainder.substring(0, remainder.length() - suffix.length());
+                }
+                remainder = remainder.trim();
+                if (!remainder.isEmpty() && remainder.chars().allMatch(Character::isDigit)) {
+                    return (int) Math.min(Integer.MAX_VALUE, Long.parseLong(remainder));
                 }
             }
+            
+            String digits = id.replaceAll("[^0-9]", "");
+            if (digits.isEmpty()) return 0;
+            if (digits.length() > 9) digits = digits.substring(0, 9); // Prevent overflow
+            return Integer.parseInt(digits);
+        } catch (Exception e) {
+            return 0;
         }
-        String fallback = id.replaceAll("[^0-9]", "");
-        return fallback.isEmpty() ? 0 : Integer.parseInt(fallback);
     }
 
     private ItemStack createPane(Material m, String n) {

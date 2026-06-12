@@ -22,7 +22,7 @@ public class Storage {
         this.config = YamlConfiguration.loadConfiguration(this.file);
     }
 
-    public void save() {
+    public synchronized void save() {
         try {
             this.config.save(this.file);
         } catch (IOException e) {

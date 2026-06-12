@@ -32,21 +32,23 @@ public class UndoCommand implements CommandExecutor {
         String dungeonId = args[1];
         String regionName = configManager.getRegion().getString("region.name_format")
                 .replace("{id}", dungeonId);
-        UndoUtil.UndoResult result = undoUtil.performUndo(regionName);
 
-        if (!result.found) {
-            sender.sendMessage(MessageUtil.colorize(getMessage("undo.region_not_found")
+        sender.sendMessage(MessageUtil.colorize("&aЗапуск удаления данжа... Пожалуйста, подождите."));
+        undoUtil.performUndo(regionName, result -> {
+            if (!result.found) {
+                sender.sendMessage(MessageUtil.colorize(getMessage("undo.region_not_found")
+                        .replace("{id}", dungeonId)
+                        .replace("{region}", regionName)));
+                return;
+            }
+
+            sender.sendMessage(MessageUtil.colorize(getMessage("undo.region_deleted")
                     .replace("{id}", dungeonId)
-                    .replace("{region}", regionName)));
-            return true;
-        }
-
-        sender.sendMessage(MessageUtil.colorize(getMessage("undo.region_deleted")
-                .replace("{id}", dungeonId)
-                .replace("{region}", regionName)
-                .replace("{world}", result.worldName)));
-        sender.sendMessage(MessageUtil.colorize(getMessage("undo.shulkers_deleted")
-                .replace("{shulker}", String.valueOf(result.chestCount))));
+                    .replace("{region}", regionName)
+                    .replace("{world}", result.worldName)));
+            sender.sendMessage(MessageUtil.colorize(getMessage("undo.shulkers_deleted")
+                    .replace("{shulker}", String.valueOf(result.chestCount))));
+        });
         return true;
     }
 

@@ -38,8 +38,11 @@ public class SchemAction {
     }
 
     public void spawnSchem(@NotNull Location location, @NotNull String fileName) {
+        spawnSchem(location, fileName, null);
+    }
+
+    public void spawnSchem(@NotNull Location location, @NotNull String fileName, @Nullable Runnable onComplete) {
         File schemFile = new File(plugin.getDataFolder() + "/schem/" + fileName);
-        Logger.info("[Schem] Ищем схему: " + schemFile.getAbsolutePath());
         if (!schemFile.exists()) {
             org.bukkit.plugin.Plugin fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
             if (fawe != null) {
@@ -47,7 +50,6 @@ public class SchemAction {
                 File alternativeFile = new File(faweFolder, fileName);
                 if (alternativeFile.exists()) {
                     schemFile = alternativeFile;
-                    Logger.info("[Schem] Найдена в FAWE: " + schemFile.getAbsolutePath());
                 }
             }
             if (!schemFile.exists()) {
@@ -57,22 +59,23 @@ public class SchemAction {
                     File alternativeFile = new File(weFolder, fileName);
                     if (alternativeFile.exists()) {
                         schemFile = alternativeFile;
-                        Logger.info("[Schem] Найдена в WE: " + schemFile.getAbsolutePath());
                     }
                 }
             }
         }
         if (!schemFile.exists()) {
             Logger.error("[Schem] Файл не найден: " + fileName);
+            if (onComplete != null) onComplete.run();
             return;
         }
         final File finalFile = schemFile;
         ClipboardFormat format = ClipboardFormats.findByFile(finalFile);
         if (format == null) {
             Logger.error("[Schem] Формат не распознан для: " + finalFile.getAbsolutePath());
+            if (onComplete != null) onComplete.run();
             return;
         }
-        Logger.info("[Schem] Формат: " + format.getName() + ", файл: " + finalFile.getName());
+
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -87,7 +90,10 @@ public class SchemAction {
                     Location targetLoc = location.clone().add(ox, oy, oz);
                     BlockVector3 targetOrigin = BlockVector3.at(targetLoc.getX(), targetLoc.getY(), targetLoc.getZ());
                     BlockVector3 offset = targetOrigin.subtract(clipboard.getOrigin());
-                    new BukkitRunnable() {
+
+                    boolean isFawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
+
+                    BukkitRunnable pasteTask = new BukkitRunnable() {
                         @Override
                         public void run() {
                             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(targetLoc.getWorld()))) {
@@ -102,15 +108,39 @@ public class SchemAction {
                                     ));
                                 }
                                 Operations.complete(copy);
+                                editSession.flushSession();
                             } catch (Exception e) {
                                 Logger.error("Не удалось вставить схему: " + fileName + " | " + e.getMessage());
                                 e.printStackTrace();
                             }
+                            if (onComplete != null) {
+                                new BukkitRunnable() {
+                                    @Override
+                                    public void run() {
+                                        onComplete.run();
+                                    }
+                                }.runTask(plugin);
+                            }
                         }
-                    }.runTask(plugin);
+                    };
+
+                    if (isFawe) {
+                        pasteTask.runTaskAsynchronously(plugin);
+                    } else {
+                        pasteTask.runTask(plugin);
+                    }
+
                 } catch (Exception e) {
                     Logger.error("Ошибка при чтении схемы: " + fileName + " | " + e.getMessage());
                     e.printStackTrace();
+                    if (onComplete != null) {
+                        new BukkitRunnable() {
+                            @Override
+                            public void run() {
+                                onComplete.run();
+                            }
+                        }.runTask(plugin);
+                    }
                 }
             }
         }.runTaskAsynchronously(plugin);
@@ -121,7 +151,7 @@ public class SchemAction {
     }
 
 
-    public void createBackup(@NotNull Location location, @NotNull String regionName, @Nullable Runnable onComplete) {
+    public void createBackup(@NotNull Location location, @NotNull String regionName, @Nullable java.util.function.Consumer<Boolean> onComplete) {
         CuboidRegion region = buildBackupRegion(location);
         File backupFile = backupFile(regionName);
 
@@ -137,7 +167,9 @@ public class SchemAction {
                     Operations.complete(copy);
                 } catch (Exception e) {
                     Logger.error("Ошибка чтения ландшафта для бэкапа: " + regionName);
-                    runCallback(onComplete);
+                    if (onComplete != null) {
+                        new BukkitRunnable() { @Override public void run() { onComplete.accept(false); } }.runTask(plugin);
+                    }
                     return;
                 }
 
@@ -145,17 +177,23 @@ public class SchemAction {
                 new BukkitRunnable() {
                     @Override
                     public void run() {
+                        boolean success = false;
                         try {
                             if (!backupFile.getParentFile().exists()) {
                                 backupFile.getParentFile().mkdirs();
                             }
                             try (ClipboardWriter writer = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(new FileOutputStream(backupFile))) {
                                 writer.write(finalClipboard);
+                                success = true;
                             }
                         } catch (Exception e) {
                             Logger.error("Ошибка записи бэкапа: " + regionName);
                         }
-                        runCallback(onComplete);
+                        
+                        final boolean finalSuccess = success;
+                        if (onComplete != null) {
+                            new BukkitRunnable() { @Override public void run() { onComplete.accept(finalSuccess); } }.runTask(plugin);
+                        }
                     }
                 }.runTaskAsynchronously(plugin);
             }
