@@ -23,7 +23,10 @@ import ru.truhot.rdang.util.CoreProtectManager;
 import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
 import ru.truhot.rdang.util.logger.Logger;
+import java.io.File;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -88,43 +91,60 @@ public class DungActions {
                 String nameFormat = configManager.getRegion().getString("region.name_format");
                 String regionName = nameFormat.replace("{id}", String.valueOf(freeId));
 
-                for (int i = 0; i < 20; i++) {
-                    DangData dangData = dangDataList.get(new Random().nextInt(dangDataList.size()));
-                    if (dangData.getWorld().equals(world.getName()) && dangData.getBiome().contains(currentBiome)) {
-                        int minY = configManager.getRegion().getInt("region.height.min");
-                        int maxY = configManager.getRegion().getInt("region.height.max");
-                        BlockVector3 minPoint = BlockVector3.at(loc.getBlockX() - radiusX, minY, loc.getBlockZ() - radiusZ);
-                        DangData selected = dangData;
-
-                        new BukkitRunnable() {
-                            @Override
-                            public void run() {
-                                schemAction.createBackup(loc, regionName, (success) -> {
-                                    if (!success) {
-                                        Logger.error("Спавн данжа отменен: не удалось создать бэкап ландшафта.");
-                                        return;
-                                    }
-                                    undoUtil.saveDungeonData(regionName, world, minPoint);
-                                    schemAction.spawnSchem(loc, selected.getFileName(), () -> {
-                                        addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
-                                        buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
-                                        
-                                        List<String> broadcastLines = configManager.getMessages().getStringList("messages.spawn.broadcast");
-                                        for (String line : broadcastLines) {
-                                            String formatted = line
-                                                    .replace("{x}", String.valueOf(loc.getBlockX()))
-                                                    .replace("{y}", String.valueOf(loc.getBlockY()))
-                                                    .replace("{z}", String.valueOf(loc.getBlockZ()))
-                                                    .replace("{world}", world.getName());
-                                            Bukkit.broadcastMessage(MessageUtil.colorize(formatted));
-                                        }
-                                    });
-                                });
-                            }
-                        }.runTask(configManager.getPlugin());
-                        return;
+                List<DangData> candidates = new ArrayList<>();
+                for (DangData d : dangDataList) {
+                    if (d.getWorld().equals(world.getName()) && d.getBiome().contains(currentBiome)) {
+                        candidates.add(d);
                     }
                 }
+                if (candidates.isEmpty()) return;
+                Collections.shuffle(candidates, new Random());
+
+                int minY = configManager.getRegion().getInt("region.height.min");
+                int maxY = configManager.getRegion().getInt("region.height.max");
+                BlockVector3 minPoint = BlockVector3.at(loc.getBlockX() - radiusX, minY, loc.getBlockZ() - radiusZ);
+
+                DangData selected = null;
+                for (DangData candidate : candidates) {
+                    File schemFile = new File(configManager.getPlugin().getDataFolder(), "schem/" + candidate.getFileName());
+                    if (schemFile.exists()) {
+                        selected = candidate;
+                        break;
+                    }
+                    Logger.warn("[AutoSpawn] Схематика не найдена: " + candidate.getFileName() + ", пробую следующий...");
+                }
+                if (selected == null) {
+                    Logger.error("Спавн отменён: ни одна схематика для биома " + currentBiome + " в мире " + world.getName() + " не найдена в папке schem/");
+                    return;
+                }
+                final DangData finalSelected = selected;
+
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        schemAction.createBackup(loc, regionName, (success) -> {
+                            if (!success) {
+                                Logger.error("Спавн данжа отменен: не удалось создать бэкап ландшафта.");
+                                return;
+                            }
+                            undoUtil.saveDungeonData(regionName, world, minPoint);
+                            schemAction.spawnSchem(loc, finalSelected.getFileName(), () -> {
+                                addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
+                                buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
+
+                                List<String> broadcastLines = configManager.getMessages().getStringList("messages.spawn.broadcast");
+                                for (String line : broadcastLines) {
+                                    String formatted = line
+                                            .replace("{x}", String.valueOf(loc.getBlockX()))
+                                            .replace("{y}", String.valueOf(loc.getBlockY()))
+                                            .replace("{z}", String.valueOf(loc.getBlockZ()))
+                                            .replace("{world}", world.getName());
+                                    Bukkit.broadcastMessage(MessageUtil.colorize(formatted));
+                                }
+                            });
+                        });
+                    }
+                }.runTask(configManager.getPlugin());
             }
         }.runTaskAsynchronously(configManager.getPlugin());
     }

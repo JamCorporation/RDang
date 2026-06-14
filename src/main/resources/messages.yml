@@ -13,6 +13,7 @@ messages:
     - " &f/rdang spawn &#557c93self &f— &7спавн данжа рядом с собой."
     - " &f/rdang spawn &#557c93[количество] [мир] &f — &7спавн данжа в мире."
     - " &f/rdang undo &#557c93[айди]&f — &7удаляет данж его регион и данные шалкеров."
+    - " &f/rdang autospawn &#557c93<on|off|interval|status>&f — &7управление авто-спавном данжей."
     - " &f/rdang update &f — &7обновляет плагин"
 
   give:
@@ -90,6 +91,18 @@ messages:
     test_success: "&7[&#6AFE76☑&7] &fШалкер зарегистрирован и заполнен!"
     remove_success: "&7[&#6AFE76☑&7] &fДанные шалкера удалены из базы!"
     loot_success: "&7[&#6AFE76☑&7] &fШалкер заполнен лутом (без регистрации)!"
+
+  autospawn:
+    usage: "&7[&#FE6A6A☒&7] &fИспользование: /rdang autospawn <on|off|interval|status> [время]"
+    enabled: "&7[&#6AFE76☑&7] &fАвто-спавн данжей &aвключён&f. Интервал: &#557c93{interval}"
+    disabled: "&7[&#6AFE76☑&7] &fАвто-спавн данжей &cвыключен&f."
+    already_enabled: "&7[&#FE6A6A☒&7] &fАвто-спавн уже &aвключён&f."
+    already_disabled: "&7[&#FE6A6A☒&7] &fАвто-спавн уже &cвыключен&f."
+    interval_usage: "&7[&#FE6A6A☒&7] &fИспользование: /rdang autospawn interval <время>. Пример: 30m, 2h, 1d"
+    interval_set: "&7[&#6AFE76☑&7] &fИнтервал авто-спавна изменён на &#557c93{interval}&f."
+    invalid_interval: "&7[&#FE6A6A☒&7] &fНекорректный формат времени. Пример: 30m, 2h, 1d"
+    status_enabled: "&7[&#6AFE76☑&7] &fАвто-спавн: &aвключён&f. Интервал: &#557c93{interval}&f. До спавна: &#557c93{remaining}"
+    status_disabled: "&7[&#FE6A6A☒&7] &fАвто-спавн: &cвыключен&f."
 
   update:
     usage: "&7[&#FE6A6A☒&7] &fИспользование: /rdang update"

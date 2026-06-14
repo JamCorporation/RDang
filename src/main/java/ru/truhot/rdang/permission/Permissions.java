@@ -19,6 +19,7 @@ public final class Permissions {
     public static final String ADMINS = "rdang.admins";
     public static final String UPDATE = "rdang.update";
     public static final String MIGRATE = "rdang.migrate";
+    public static final String AUTOSPAWN = "rdang.autospawn";
 
     private Permissions() {}
 

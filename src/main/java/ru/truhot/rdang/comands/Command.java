@@ -3,6 +3,7 @@ package ru.truhot.rdang.comands;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import ru.truhot.rdang.RDang;
+import ru.truhot.rdang.autospawn.AutoSpawnManager;
 import ru.truhot.rdang.comands.impl.*;
 import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.dung.DungActions;
@@ -30,11 +31,12 @@ public class Command implements CommandExecutor {
     private final AdminsCommand adminsCommand;
     private final UpdateCommand updateCommand;
     private final MigrateCommand migrateCommand;
+    private final AutoSpawnCommand autoSpawnCommand;
 
     public Command(MainCore mainCore, DungActions dungActions, RDang plugin,
                    Storage items, Storage shulkers, Storage block,
                    ConfigManager configManager, MenuManager menuManager, UndoUtil undoUtil,
-                   ChestManager chestManager, UpdateUtil updateUtil) {
+                   ChestManager chestManager, UpdateUtil updateUtil, AutoSpawnManager autoSpawnManager) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.undoUtil = undoUtil;
@@ -47,6 +49,7 @@ public class Command implements CommandExecutor {
         this.menuCommand = new MenuCommand(configManager, menuManager);
         this.updateCommand = new UpdateCommand(plugin, configManager, updateUtil);
         this.migrateCommand = new MigrateCommand(plugin, configManager);
+        this.autoSpawnCommand = new AutoSpawnCommand(autoSpawnManager, configManager);
     }
 
     @Override
@@ -82,6 +85,8 @@ public class Command implements CommandExecutor {
                 return updateCommand.onCommand(sender, command, label, args);
             case "migrate":
                 return migrateCommand.onCommand(sender, command, label, args);
+            case "autospawn":
+                return autoSpawnCommand.onCommand(sender, command, label, args);
             default:
                 String unknownMsg = getMessage("unknown_command").replace("{command}", subCommand);
                 sender.sendMessage(MessageUtil.colorize(unknownMsg));

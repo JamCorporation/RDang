@@ -3,6 +3,7 @@ package ru.truhot.rdang;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.truhot.rdang.addchests.AddChests;
+import ru.truhot.rdang.autospawn.AutoSpawnManager;
 import ru.truhot.rdang.comands.Command;
 import ru.truhot.rdang.comands.RTabCompleter;
 import ru.truhot.rdang.config.ConfigManager;
@@ -24,6 +25,7 @@ import java.io.File;
 
 public final class RDang extends JavaPlugin {
     private UndoUtil undoUtil;
+    private AutoSpawnManager autoSpawnManager;
 
     @Override
     public void onEnable() {
@@ -46,10 +48,12 @@ public final class RDang extends JavaPlugin {
         coreProtectManager.init();
         mainCore.getChestManager().loadCache();
         DungActions dungActions = new DungActions(schemAction, addChests, configManager, undoUtil, coreProtectManager);
+        this.autoSpawnManager = new AutoSpawnManager(this, configManager, dungActions);
+        autoSpawnManager.start();
         MenuManager menuManager = new MenuManager(configManager, items, shulkers, blockStorage, this, mainCore.getLootManager());
         UpdateUtil updateUtil = new UpdateUtil(this);
         if (getConfig().getBoolean("settings.update-check")) {updateUtil.check();}
-        Command command = new Command(mainCore, dungActions, this, items, shulkers, blockStorage, configManager, menuManager, undoUtil, mainCore.getChestManager(), updateUtil);
+        Command command = new Command(mainCore, dungActions, this, items, shulkers, blockStorage, configManager, menuManager, undoUtil, mainCore.getChestManager(), updateUtil, autoSpawnManager);
         getServer().getPluginManager().registerEvents(menuManager, this);
         getCommand("rdang").setExecutor(command);
         getCommand("rdang").setTabCompleter(new RTabCompleter(this));
@@ -67,6 +71,7 @@ public final class RDang extends JavaPlugin {
     public void onDisable() {
         Logger.info("отключен!");
         if (undoUtil != null) undoUtil.shutdown();
+        if (autoSpawnManager != null) autoSpawnManager.stop();
         Bukkit.getScheduler().cancelTasks(this);
     }
 
