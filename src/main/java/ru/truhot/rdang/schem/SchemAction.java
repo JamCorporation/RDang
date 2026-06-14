@@ -154,50 +154,51 @@ public class SchemAction {
     public void createBackup(@NotNull Location location, @NotNull String regionName, @Nullable java.util.function.Consumer<Boolean> onComplete) {
         CuboidRegion region = buildBackupRegion(location);
         File backupFile = backupFile(regionName);
+        boolean isFawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                BlockArrayClipboard clipboard;
-                try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(location.getWorld()))) {
-                    clipboard = new BlockArrayClipboard(region);
-                    clipboard.setOrigin(region.getMinimumPoint());
-                    ForwardExtentCopy copy = new ForwardExtentCopy(editSession, region, clipboard, region.getMinimumPoint());
-                    copy.setCopyingEntities(false);
-                    Operations.complete(copy);
-                } catch (Exception e) {
-                    Logger.error("Ошибка чтения ландшафта для бэкапа: " + regionName);
-                    if (onComplete != null) {
-                        new BukkitRunnable() { @Override public void run() { onComplete.accept(false); } }.runTask(plugin);
-                    }
-                    return;
+        Runnable doRead = () -> {
+            BlockArrayClipboard clipboard;
+            try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(location.getWorld()))) {
+                clipboard = new BlockArrayClipboard(region);
+                clipboard.setOrigin(region.getMinimumPoint());
+                ForwardExtentCopy copy = new ForwardExtentCopy(editSession, region, clipboard, region.getMinimumPoint());
+                copy.setCopyingEntities(false);
+                Operations.complete(copy);
+            } catch (Exception e) {
+                Logger.error("Ошибка чтения ландшафта для бэкапа: " + regionName + " | " + e.getMessage());
+                if (onComplete != null) {
+                    new BukkitRunnable() { @Override public void run() { onComplete.accept(false); } }.runTask(plugin);
                 }
-
-                BlockArrayClipboard finalClipboard = clipboard;
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        boolean success = false;
-                        try {
-                            if (!backupFile.getParentFile().exists()) {
-                                backupFile.getParentFile().mkdirs();
-                            }
-                            try (ClipboardWriter writer = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(new FileOutputStream(backupFile))) {
-                                writer.write(finalClipboard);
-                                success = true;
-                            }
-                        } catch (Exception e) {
-                            Logger.error("Ошибка записи бэкапа: " + regionName);
-                        }
-                        
-                        final boolean finalSuccess = success;
-                        if (onComplete != null) {
-                            new BukkitRunnable() { @Override public void run() { onComplete.accept(finalSuccess); } }.runTask(plugin);
-                        }
-                    }
-                }.runTaskAsynchronously(plugin);
+                return;
             }
-        }.runTask(plugin);
+
+            BlockArrayClipboard finalClipboard = clipboard;
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    boolean success = false;
+                    try {
+                        if (!backupFile.getParentFile().exists()) backupFile.getParentFile().mkdirs();
+                        try (ClipboardWriter writer = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(new FileOutputStream(backupFile))) {
+                            writer.write(finalClipboard);
+                            success = true;
+                        }
+                    } catch (Exception e) {
+                        Logger.error("Ошибка записи бэкапа: " + regionName + " | " + e.getMessage());
+                    }
+                    final boolean finalSuccess = success;
+                    if (onComplete != null) {
+                        new BukkitRunnable() { @Override public void run() { onComplete.accept(finalSuccess); } }.runTask(plugin);
+                    }
+                }
+            }.runTaskAsynchronously(plugin);
+        };
+
+        if (isFawe) {
+            new BukkitRunnable() { @Override public void run() { doRead.run(); } }.runTaskAsynchronously(plugin);
+        } else {
+            new BukkitRunnable() { @Override public void run() { doRead.run(); } }.runTask(plugin);
+        }
     }
 
     public File backupFile(String regionName) {

@@ -38,10 +38,13 @@ public final class RDang extends JavaPlugin {
         SchemAction schemAction = new SchemAction(this, configManager);
         this.undoUtil = new UndoUtil(configManager, shulkers, blockStorage, this, schemAction);
         MainCore mainCore = CoreFactory.createDang(items, shulkers, configManager, undoUtil);
+        undoUtil.setChestManager(mainCore.getChestManager());
+        mainCore.getChestManager().setPlugin(this);
         ChestActions chestActions = new BDangChest(mainCore);
         AddChests addChests = new AddChests(this, chestActions);
         CoreProtectManager coreProtectManager = new CoreProtectManager();
         coreProtectManager.init();
+        mainCore.getChestManager().loadCache();
         DungActions dungActions = new DungActions(schemAction, addChests, configManager, undoUtil, coreProtectManager);
         MenuManager menuManager = new MenuManager(configManager, items, shulkers, blockStorage, this, mainCore.getLootManager());
         UpdateUtil updateUtil = new UpdateUtil(this);
@@ -65,5 +68,14 @@ public final class RDang extends JavaPlugin {
         Logger.info("отключен!");
         if (undoUtil != null) undoUtil.shutdown();
         Bukkit.getScheduler().cancelTasks(this);
+    }
+
+    public void onReload() {
+        // Логика перезагрузки будет вызвана из команды
+        ru.truhot.rdang.util.MessageUtil.clearCache();
+    }
+
+    public UndoUtil getUndoUtil() {
+        return undoUtil;
     }
 }

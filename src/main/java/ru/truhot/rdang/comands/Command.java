@@ -41,7 +41,7 @@ public class Command implements CommandExecutor {
         this.adminsCommand = new AdminsCommand(chestManager, mainCore.getLootManager(), shulkers, configManager);
         this.spawnCommand = new SpawnCommand(dungActions, configManager);
         this.giveCommand = new GiveCommand(configManager);
-        this.reloadCommand = new ReloadCommand(configManager, items, shulkers);
+        this.reloadCommand = new ReloadCommand(configManager, items, shulkers, chestManager);
         this.schemCommand = new SchemCommand(dungActions, plugin, configManager, shulkers, undoUtil);
         this.undoCommand = new UndoCommand(configManager, undoUtil);
         this.menuCommand = new MenuCommand(configManager, menuManager);

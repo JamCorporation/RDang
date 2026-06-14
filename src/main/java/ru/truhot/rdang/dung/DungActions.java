@@ -20,6 +20,7 @@ import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.data.DangData;
 import ru.truhot.rdang.schem.SchemAction;
 import ru.truhot.rdang.util.CoreProtectManager;
+import ru.truhot.rdang.util.MessageUtil;
 import ru.truhot.rdang.util.UndoUtil;
 import ru.truhot.rdang.util.logger.Logger;
 import java.lang.reflect.Field;
@@ -107,6 +108,16 @@ public class DungActions {
                                     schemAction.spawnSchem(loc, selected.getFileName(), () -> {
                                         addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
                                         buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
+                                        
+                                        List<String> broadcastLines = configManager.getMessages().getStringList("messages.spawn.broadcast");
+                                        for (String line : broadcastLines) {
+                                            String formatted = line
+                                                    .replace("{x}", String.valueOf(loc.getBlockX()))
+                                                    .replace("{y}", String.valueOf(loc.getBlockY()))
+                                                    .replace("{z}", String.valueOf(loc.getBlockZ()))
+                                                    .replace("{world}", world.getName());
+                                            Bukkit.broadcastMessage(MessageUtil.colorize(formatted));
+                                        }
                                     });
                                 });
                             }

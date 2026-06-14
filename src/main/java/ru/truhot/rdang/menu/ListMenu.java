@@ -20,6 +20,7 @@ import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.*;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ListMenu extends AbstractMenu {
     private static final int ITEMS_PER_PAGE = 45, INVENTORY_SIZE = 54, NEXT_PAGE_SLOT = 50, PREV_PAGE_SLOT = 48, DELETE_ALL_SLOT = 49;
@@ -31,10 +32,13 @@ public class ListMenu extends AbstractMenu {
     private final ItemStack nextBtn, prevBtn, deleteAllBtn;
     private final Map<Material, ItemStack> dungeonTemplates = new EnumMap<>(Material.class);
 
-    public ListMenu(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin) {
+    private final UndoUtil undoUtil;
+
+    public ListMenu(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin, UndoUtil undoUtil) {
         super(configManager, plugin);
         this.shulkers = shulkers;
         this.blockStorage = blockStorage;
+        this.undoUtil = undoUtil;
         this.teleportUtil = new TeleportUtil(configManager);
         String format = configManager.getRegion().getString("region.name_format", "dang_{id}");
         if (format.contains("{id}")) {
@@ -50,6 +54,10 @@ public class ListMenu extends AbstractMenu {
         this.prevBtn = createPrevBtn();
         this.deleteAllBtn = createDeleteBtn();
         setupTemplates();
+    }
+
+    public ListMenu(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin) {
+        this(configManager, shulkers, blockStorage, plugin, plugin.getUndoUtil());
     }
 
     private void setupTemplates() {
@@ -126,27 +134,20 @@ public class ListMenu extends AbstractMenu {
         if (slot == DELETE_ALL_SLOT) {
             List<String> allIds = getIds();
             if (allIds.isEmpty()) return;
-            UndoUtil undoUtil = new UndoUtil(configManager, shulkers, blockStorage, plugin);
             player.sendMessage(MessageUtil.colorize("&aЗапуск удаления всех данжей..."));
             player.closeInventory();
 
-            new BukkitRunnable() {
-                int count = 0;
-                int processed = 0;
-                @Override
-                public void run() {
-                    for (String rId : allIds) {
-                        undoUtil.performUndo(rId, res -> {
-                            if (res.found) count++;
-                            processed++;
-                            if (processed == allIds.size()) {
-                                player.sendMessage(MessageUtil.colorize("&7[&#6AFE76☑&7] &fУспешно удалено &#557c93" + count + " &fданжей."));
-                                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 0.5f, 1.2f);
-                            }
-                        });
+            AtomicInteger count = new AtomicInteger(0);
+            AtomicInteger processed = new AtomicInteger(0);
+            for (String rId : allIds) {
+                undoUtil.performUndo(rId, res -> {
+                    if (res.found) count.incrementAndGet();
+                    if (processed.incrementAndGet() == allIds.size()) {
+                        player.sendMessage(MessageUtil.colorize("&7[&#6AFE76☑&7] &fУспешно удалено &#557c93" + count.get() + " &fданжей."));
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 0.5f, 1.2f);
                     }
-                }
-            }.runTask(plugin);
+                });
+            }
             return;
         }
         if (slot == NEXT_PAGE_SLOT) {
@@ -173,7 +174,7 @@ public class ListMenu extends AbstractMenu {
                     player.closeInventory();
                     teleportUtil.teleport(player, rId);
                 } else if (e.isLeftClick()) {
-                    new UndoUtil(configManager, shulkers, blockStorage, plugin).performUndo(rId, res -> {
+                    undoUtil.performUndo(rId, res -> {
                         if (res.found) {
                             player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_BREAK, 0.5f, 1.5f);
                             openMenu(player, currentPage);

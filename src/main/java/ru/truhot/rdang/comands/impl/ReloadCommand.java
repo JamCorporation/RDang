@@ -13,11 +13,13 @@ public class ReloadCommand implements CommandExecutor {
     private final ConfigManager configManager;
     private final Storage items;
     private final Storage shulkers;
+    private final ru.truhot.rdang.сore.managers.ChestManager chestManager;
 
-    public ReloadCommand(ConfigManager configManager, Storage items, Storage shulkers) {
+    public ReloadCommand(ConfigManager configManager, Storage items, Storage shulkers, ru.truhot.rdang.сore.managers.ChestManager chestManager) {
         this.configManager = configManager;
         this.items = items;
         this.shulkers = shulkers;
+        this.chestManager = chestManager;
     }
 
     @Override
@@ -34,6 +36,8 @@ public class ReloadCommand implements CommandExecutor {
         configManager.reloadAll();
         items.reloadConfig();
         shulkers.reloadConfig();
+        chestManager.loadCache();
+        MessageUtil.clearCache();
 
         sender.sendMessage(MessageUtil.colorize(getMessage("reload.success")));
         return true;

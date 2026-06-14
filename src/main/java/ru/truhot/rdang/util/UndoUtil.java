@@ -25,6 +25,7 @@ import ru.truhot.rdang.config.ConfigManager;
 import ru.truhot.rdang.schem.SchemAction;
 import ru.truhot.rdang.storage.Storage;
 import ru.truhot.rdang.util.logger.Logger;
+import ru.truhot.rdang.сore.managers.ChestManager;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,6 +41,7 @@ public class UndoUtil {
     private final Storage blockStorage;
     private final RDang plugin;
     private final SchemAction schemAction;
+    private ChestManager chestManager;
     private final Map<String, BukkitRunnable> activeTimers = new HashMap<>();
 
     public static class UndoResult {
@@ -60,22 +62,32 @@ public class UndoUtil {
         this.blockStorage = blockStorage;
         this.plugin = plugin;
         this.schemAction = schemAction;
+        this.chestManager = null; // Будет установлен позже через setter если нужно
     }
 
-    public UndoUtil(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin) {
-        this(configManager, shulkers, blockStorage, plugin, new SchemAction(plugin, configManager));
+    public void setChestManager(ChestManager chestManager) {
+        this.chestManager = chestManager;
+    }
+
+    public UndoUtil(ConfigManager configManager, Storage shulkers, Storage blockStorage, RDang plugin, SchemAction schemAction, ChestManager chestManager) {
+        this.configManager = configManager;
+        this.shulkers = shulkers;
+        this.blockStorage = blockStorage;
+        this.plugin = plugin;
+        this.schemAction = schemAction;
+        this.chestManager = chestManager;
     }
 
     public void saveDungeonData(String regionName, World world, BlockVector3 minPoint) {
-        synchronized (blockStorage) {
-            String path = "history." + regionName;
-            ConfigurationSection section = blockStorage.getConfig().createSection(path);
-            section.set("world", world.getName());
-            section.set("x", minPoint.getX());
-            section.set("y", minPoint.getY());
-            section.set("z", minPoint.getZ());
-            blockStorage.save();
-        }
+        String path = "history." + regionName;
+        ConfigurationSection section = blockStorage.getConfig().createSection(path);
+        section.set("world", world.getName());
+        section.set("x", minPoint.getX());
+        section.set("y", minPoint.getY());
+        section.set("z", minPoint.getZ());
+        new BukkitRunnable() {
+            @Override public void run() { blockStorage.save(); }
+        }.runTaskAsynchronously(plugin);
     }
 
     public void performUndo(String regionName, Consumer<UndoResult> callback) {
@@ -135,7 +147,6 @@ public class UndoUtil {
                                         }
                                     }
 
-                                    // Удаляем запись из истории ТОЛЬКО после попытки восстановления
                                     blockStorage.getConfig().set(path, null);
                                     blockStorage.save();
                                     
@@ -191,7 +202,6 @@ public class UndoUtil {
                             } catch (Exception e) {
                                 Logger.error("Ошибка при восстановлении блоков для данжа " + regionName + ": " + e.getMessage());
                             } finally {
-                                // Удаляем файл бэкапа только после успешной или завершенной попытки вставки
                                 if (backupFile.exists() && !backupFile.delete()) {
                                     Logger.warn("Не удалось удалить файл бэкапа: " + backupFile.getName());
                                 }
@@ -275,6 +285,9 @@ public class UndoUtil {
             if (loc != null && loc.getWorld().getName().equals(world.getName())) {
                 if (region.contains(BukkitAdapter.asBlockVector(loc))) {
                     toRemove.add(key);
+                    if (chestManager != null) {
+                        chestManager.removeChestFromCache(loc);
+                    }
                 }
             }
         }

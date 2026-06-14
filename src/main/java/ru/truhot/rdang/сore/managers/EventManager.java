@@ -61,27 +61,28 @@ public class EventManager implements Listener {
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        Block clicked = event.getClickedBlock();
+        if (clicked == null || !this.chestManager.isChest(clicked)) return;
+
+        String chestId = this.chestManager.getChestId(clicked.getLocation());
+        if (chestId == null) return;
+
         ConfigurationSection locsSection = this.shulkers.getConfig().getConfigurationSection("locs");
-        if (locsSection != null && event.getClickedBlock() != null) {
-            if (this.chestManager.isChest(event.getClickedBlock())) {
-                for (String itemId : locsSection.getKeys(false)) {
-                    ConfigurationSection chest = locsSection.getConfigurationSection(itemId);
-                    Location chestLocation = chest.getLocation("location");
-                    if (isSameLocation(event.getClickedBlock().getLocation(), chestLocation) && !chest.getBoolean("opened")) {
-                        if (!this.configManager.isNeedKey()) {
-                            ChestOpen(event, chest, chestLocation, null);
-                            return;
-                        }
-                        ItemStack itemInHand = event.getItem();
-                        if (itemInHand != null && itemInHand.getType() != Material.AIR && this.itemChecker.isValidKey(itemInHand)) {
-                            ChestOpen(event, chest, chestLocation, itemInHand);
-                            return;
-                        }
-                        ChestLocked(event, chestLocation);
-                        return;
-                    }
-                }
+        if (locsSection == null) return;
+
+        ConfigurationSection chest = locsSection.getConfigurationSection(chestId);
+        if (chest != null && !chest.getBoolean("opened")) {
+            Location chestLocation = clicked.getLocation();
+            if (!this.configManager.isNeedKey()) {
+                ChestOpen(event, chest, chestLocation, null);
+                return;
             }
+            ItemStack itemInHand = event.getItem();
+            if (itemInHand != null && itemInHand.getType() != Material.AIR && this.itemChecker.isValidKey(itemInHand)) {
+                ChestOpen(event, chest, chestLocation, itemInHand);
+                return;
+            }
+            ChestLocked(event, chestLocation);
         }
     }
 
@@ -90,7 +91,6 @@ public class EventManager implements Listener {
         playEffectSound(loc, "open");
         chest.set("opened", true);
         Bukkit.getScheduler().runTaskAsynchronously(configManager.getPlugin(), () -> this.shulkers.save());
-        this.checkCleanup(loc);
         if (this.configManager.isNeedKey()) {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 this.configManager.getMessageManager().getOpenDungMessages(event.getPlayer().getName()).forEach(p::sendMessage);
@@ -124,8 +124,10 @@ public class EventManager implements Listener {
         if (this.random.nextInt(100) < this.configManager.getItemManager().getSpawnChance()) {
             e.getLoot().add(this.configManager.getItemManager().getKey());
             if (e.getEntity() instanceof Player player) {
-                String rawMsg = this.configManager.getMessages().getString("messages.key_found");
-                Bukkit.broadcastMessage(MessageUtil.colorize(rawMsg.replace("{player}", player.getName())));
+                String rawMsg = this.configManager.getMessages().getString("messages.key_found", "&7[&#6AFE76!&7] &fИгрок &#557c93{player} &fнашел ключ от данжа!");
+                if (rawMsg != null) {
+                    Bukkit.broadcastMessage(MessageUtil.colorize(rawMsg.replace("{player}", player.getName())));
+                }
             }
         }
     }
@@ -215,8 +217,9 @@ public class EventManager implements Listener {
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() instanceof Container container) {
-            if (this.chestManager.isChest(container.getBlock())) {
-                this.checkCleanup(container.getLocation());
+            Block block = container.getBlock();
+            if (this.chestManager.isChest(block) && this.chestManager.getChestId(block.getLocation()) != null) {
+                this.checkCleanup(block.getLocation());
             }
         }
     }
@@ -273,21 +276,41 @@ public class EventManager implements Listener {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         RegionManager manager = container.get(BukkitAdapter.adapt(loc.getWorld()));
         if (manager == null) return;
-        String format = this.configManager.getRegion().getString("region.name_format", "dang_").replace("{id}", "");
+        String format = this.configManager.getRegion().getString("region.name_format", "dang_{id}");
+        String prefix = format.split("\\{id\\}")[0].toLowerCase();
         manager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions().stream()
-                .filter(r -> r.getId().startsWith(format)).findFirst().ifPresent(region -> {
+                .filter(r -> r.getId().toLowerCase().startsWith(prefix)).findFirst().ifPresent(region -> {
                     ConfigurationSection locs = this.shulkers.getConfig().getConfigurationSection("locs");
-                    if (locs == null) return;
-                    boolean hasLoot = locs.getKeys(false).stream().anyMatch(k -> {
-                        ConfigurationSection s = locs.getConfigurationSection(k);
+                    if (locs == null) {
+                        this.undoUtil.scheduleAutoUndo(region.getId(), loc.getWorld(), region);
+                        return;
+                    }
+
+                    boolean hasLoot = false;
+                    for (String key : locs.getKeys(false)) {
+                        ConfigurationSection s = locs.getConfigurationSection(key);
+                        if (s == null) continue;
                         Location sLoc = s.getLocation("location");
-                        if (sLoc == null || !sLoc.getWorld().getName().equals(loc.getWorld().getName()) || !region.contains(BukkitAdapter.asBlockVector(sLoc))) return false;
-                        if (!s.getBoolean("opened")) return true;
-                        if (sLoc.getBlock().getState() instanceof Container invContainer) {
-                            for (ItemStack i : invContainer.getInventory().getContents()) if (i != null && i.getType() != Material.AIR) return true;
+                        if (sLoc == null || sLoc.getWorld() == null) continue;
+                        if (!sLoc.getWorld().getName().equals(loc.getWorld().getName())) continue;
+                        if (!region.contains(BukkitAdapter.asBlockVector(sLoc))) continue;
+
+                        if (!s.getBoolean("opened")) {
+                            hasLoot = true;
+                            break;
                         }
-                        return false;
-                    });
+
+                        if (sLoc.getBlock().getState() instanceof Container invContainer) {
+                            for (ItemStack i : invContainer.getInventory().getContents()) {
+                                if (i != null && i.getType() != Material.AIR) {
+                                    hasLoot = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (hasLoot) break;
+                    }
+
                     if (!hasLoot) this.undoUtil.scheduleAutoUndo(region.getId(), loc.getWorld(), region);
                 });
     }
