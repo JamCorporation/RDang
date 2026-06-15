@@ -59,6 +59,8 @@ public final class RDang extends JavaPlugin {
         getCommand("rdang").setTabCompleter(new RTabCompleter(this));
         getServer().getPluginManager().registerEvents(mainCore, this);
         getServer().getPluginManager().registerEvents(mainCore.getEventHandler(), this);
+        final UndoUtil finalUndoUtil = this.undoUtil;
+        Bukkit.getScheduler().runTaskLater(this, finalUndoUtil::restoreTimersOnStartup, 40L);
         Logger.info("успешно запущен!");
         if (getConfig().getBoolean("settings.metrics")) {
             int pluginId = 28720;

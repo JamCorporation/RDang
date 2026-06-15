@@ -7,6 +7,10 @@ import ru.truhot.rdang.util.logger.Logger;
 import ru.truhot.rdang.сore.managers.*;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 public class ConfigManager {
 
@@ -74,7 +78,33 @@ public class ConfigManager {
                 Logger.info(fileName + " успешно загружен");
             }
         }
-        return YamlConfiguration.loadConfiguration(file);
+        FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+        if (saveDefault) {
+            mergeDefaults(cfg, file, fileName);
+        }
+        return cfg;
+    }
+
+    private void mergeDefaults(FileConfiguration cfg, File file, String resourceName) {
+        InputStream resource = plugin.getResource(resourceName);
+        if (resource == null) return;
+        YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
+                new InputStreamReader(resource, StandardCharsets.UTF_8));
+        boolean changed = false;
+        for (String key : defaults.getKeys(true)) {
+            if (!cfg.contains(key)) {
+                cfg.set(key, defaults.get(key));
+                changed = true;
+            }
+        }
+        if (changed) {
+            try {
+                cfg.save(file);
+                Logger.info("[Config] Добавлены новые поля в " + resourceName);
+            } catch (IOException e) {
+                Logger.error("[Config] Не удалось сохранить " + resourceName + ": " + e.getMessage());
+            }
+        }
     }
 
     public boolean isNeedKey() {

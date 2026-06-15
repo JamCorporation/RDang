@@ -1,8 +1,10 @@
 E:\RDang\src\main\java\ru\truhot\rdang\addchests\AddChests.java
+E:\RDang\src\main\java\ru\truhot\rdang\autospawn\AutoSpawnManager.java
 E:\RDang\src\main\java\ru\truhot\rdang\chest\BDangChest.java
 E:\RDang\src\main\java\ru\truhot\rdang\chest\ChestActions.java
 E:\RDang\src\main\java\ru\truhot\rdang\comands\Command.java
 E:\RDang\src\main\java\ru\truhot\rdang\comands\impl\AdminsCommand.java
+E:\RDang\src\main\java\ru\truhot\rdang\comands\impl\AutoSpawnCommand.java
 E:\RDang\src\main\java\ru\truhot\rdang\comands\impl\GiveCommand.java
 E:\RDang\src\main\java\ru\truhot\rdang\comands\impl\MenuCommand.java
 E:\RDang\src\main\java\ru\truhot\rdang\comands\impl\MigrateCommand.java

@@ -10,10 +10,13 @@ import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardWriter;
+import com.sk89q.worldedit.function.mask.BlockTypeMask;
 import com.sk89q.worldedit.function.operation.ForwardExtentCopy;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
+import com.sk89q.worldedit.world.block.BlockType;
+import com.sk89q.worldedit.world.block.BlockTypes;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
@@ -27,6 +30,8 @@ import ru.truhot.rdang.util.logger.Logger;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SchemAction {
     private final RDang plugin;
@@ -213,6 +218,56 @@ public class SchemAction {
         BlockVector3 min = BlockVector3.at(location.getBlockX() - radiusX, minY, location.getBlockZ() - radiusZ);
         BlockVector3 max = BlockVector3.at(location.getBlockX() + radiusX, maxY, location.getBlockZ() + radiusZ);
         return new CuboidRegion(BukkitAdapter.adapt(location.getWorld()), min, max);
+    }
+
+    public void clearVegetation(@NotNull Location center) {
+        if (!configManager.getSchem().getBoolean("clear-vegetation", true)) return;
+        boolean isFawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
+        CuboidRegion region = buildBackupRegion(center);
+
+        Runnable task = () -> {
+            try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(center.getWorld()))) {
+                List<BlockType> vegTypes = new ArrayList<>();
+                for (BlockType type : BlockType.REGISTRY.values()) {
+                    if (type == null) continue;
+                    String id = type.getId();
+                    if (id.contains("_log") || id.contains("_leaves") || id.contains("_wood")
+                            || id.contains("_sapling") || id.contains("_mushroom")
+                            || id.equals("minecraft:grass") || id.equals("minecraft:tall_grass")
+                            || id.equals("minecraft:fern") || id.equals("minecraft:large_fern")
+                            || id.equals("minecraft:dead_bush") || id.equals("minecraft:vine")
+                            || id.equals("minecraft:bamboo") || id.equals("minecraft:bamboo_sapling")
+                            || id.equals("minecraft:sugar_cane") || id.equals("minecraft:cactus")
+                            || id.contains("_flower") || id.contains("_tulip") || id.equals("minecraft:dandelion")
+                            || id.equals("minecraft:poppy") || id.equals("minecraft:blue_orchid")
+                            || id.equals("minecraft:allium") || id.equals("minecraft:oxeye_daisy")
+                            || id.equals("minecraft:cornflower") || id.equals("minecraft:lily_of_the_valley")
+                            || id.equals("minecraft:sunflower") || id.equals("minecraft:lilac")
+                            || id.equals("minecraft:peony") || id.equals("minecraft:rose_bush")
+                            || id.contains("_stem") || id.contains("_vine") || id.contains("fungus")
+                            || id.equals("minecraft:hanging_roots") || id.equals("minecraft:glow_lichen")
+                            || id.equals("minecraft:moss_block") || id.equals("minecraft:moss_carpet")
+                            || id.equals("minecraft:spore_blossom") || id.equals("minecraft:azalea")
+                            || id.equals("minecraft:flowering_azalea") || id.equals("minecraft:azalea_leaves")
+                            || id.equals("minecraft:flowering_azalea_leaves")
+                            || id.equals("minecraft:brown_mushroom") || id.equals("minecraft:red_mushroom")
+                    ) {
+                        vegTypes.add(type);
+                    }
+                }
+                BlockTypeMask mask = new BlockTypeMask(editSession, vegTypes);
+                editSession.replaceBlocks(region, mask, BlockTypes.AIR.getDefaultState());
+                editSession.flushSession();
+            } catch (Exception e) {
+                Logger.error("Ошибка при очистке растительности: " + e.getMessage());
+            }
+        };
+
+        if (isFawe) {
+            new BukkitRunnable() { @Override public void run() { task.run(); } }.runTaskAsynchronously(plugin);
+        } else {
+            new BukkitRunnable() { @Override public void run() { task.run(); } }.runTask(plugin);
+        }
     }
 
     private void runCallback(@Nullable Runnable onComplete) {

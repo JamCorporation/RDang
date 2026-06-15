@@ -85,9 +85,31 @@ public class UndoUtil {
         section.set("x", minPoint.getX());
         section.set("y", minPoint.getY());
         section.set("z", minPoint.getZ());
+        section.set("spawnedAt", System.currentTimeMillis());
         new BukkitRunnable() {
             @Override public void run() { blockStorage.save(); }
         }.runTaskAsynchronously(plugin);
+    }
+
+    public int getActiveDungeonCount() {
+        ConfigurationSection history = blockStorage.getConfig().getConfigurationSection("history");
+        if (history == null) return 0;
+        return history.getKeys(false).size();
+    }
+
+    public String getOldestDungeonName() {
+        ConfigurationSection history = blockStorage.getConfig().getConfigurationSection("history");
+        if (history == null) return null;
+        String oldest = null;
+        long oldestTime = Long.MAX_VALUE;
+        for (String key : history.getKeys(false)) {
+            long t = history.getLong(key + ".spawnedAt", 0L);
+            if (t < oldestTime) {
+                oldestTime = t;
+                oldest = key;
+            }
+        }
+        return oldest;
     }
 
     public void performUndo(String regionName, Consumer<UndoResult> callback) {
@@ -264,6 +286,73 @@ public class UndoUtil {
         };
         activeTimers.put(regionName, task);
         task.runTaskTimer(plugin, 0L, 20L);
+    }
+
+    public void restoreTimersOnStartup() {
+        if (!configManager.getAuto().getBoolean("auto.enabled")) return;
+
+        ConfigurationSection history = blockStorage.getConfig().getConfigurationSection("history");
+        if (history == null) return;
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (String regionName : history.getKeys(false)) {
+                    if (activeTimers.containsKey(regionName)) continue;
+
+                    ConfigurationSection data = history.getConfigurationSection(regionName);
+                    if (data == null) continue;
+                    String worldName = data.getString("world");
+                    if (worldName == null) continue;
+                    World world = Bukkit.getWorld(worldName);
+                    if (world == null) continue;
+
+                    RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+                    RegionManager manager = container.get(BukkitAdapter.adapt(world));
+                    if (manager == null) continue;
+                    ProtectedRegion region = manager.getRegion(regionName);
+                    if (region == null) continue;
+
+                    ConfigurationSection locs = shulkers.getConfig().getConfigurationSection("locs");
+                    if (locs == null) {
+                        scheduleAutoUndo(regionName, world, region);
+                        continue;
+                    }
+
+                    boolean hasLoot = false;
+                    boolean hasAnyChest = false;
+                    for (String key : locs.getKeys(false)) {
+                        ConfigurationSection s = locs.getConfigurationSection(key);
+                        if (s == null) continue;
+                        Location loc = s.getLocation("location");
+                        if (loc == null || loc.getWorld() == null) continue;
+                        if (!loc.getWorld().getName().equals(worldName)) continue;
+                        if (!region.contains(BukkitAdapter.asBlockVector(loc))) continue;
+
+                        hasAnyChest = true;
+                        if (!s.getBoolean("opened")) {
+                            hasLoot = true;
+                            break;
+                        }
+                        org.bukkit.block.Block block = loc.getBlock();
+                        if (block.getState() instanceof org.bukkit.block.Container container2) {
+                            for (org.bukkit.inventory.ItemStack item : container2.getInventory().getContents()) {
+                                if (item != null && item.getType() != org.bukkit.Material.AIR) {
+                                    hasLoot = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (hasLoot) break;
+                    }
+
+                    if (!hasLoot && hasAnyChest) {
+                        Logger.info("Восстановление таймера авто-удаления для данжа: " + regionName);
+                        scheduleAutoUndo(regionName, world, region);
+                    }
+                }
+            }
+        }.runTask(plugin);
     }
 
     public void shutdown() {

@@ -119,34 +119,52 @@ public class DungActions {
                 }
                 final DangData finalSelected = selected;
 
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        schemAction.createBackup(loc, regionName, (success) -> {
-                            if (!success) {
-                                Logger.error("Спавн данжа отменен: не удалось создать бэкап ландшафта.");
-                                return;
-                            }
-                            undoUtil.saveDungeonData(regionName, world, minPoint);
-                            schemAction.spawnSchem(loc, finalSelected.getFileName(), () -> {
-                                addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
-                                buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
-
-                                List<String> broadcastLines = configManager.getMessages().getStringList("messages.spawn.broadcast");
-                                for (String line : broadcastLines) {
-                                    String formatted = line
-                                            .replace("{x}", String.valueOf(loc.getBlockX()))
-                                            .replace("{y}", String.valueOf(loc.getBlockY()))
-                                            .replace("{z}", String.valueOf(loc.getBlockZ()))
-                                            .replace("{world}", world.getName());
-                                    Bukkit.broadcastMessage(MessageUtil.colorize(formatted));
-                                }
-                            });
+                int maxDungeons = configManager.getRegion().getInt("check.max-dungeons", 0);
+                if (maxDungeons > 0 && undoUtil.getActiveDungeonCount() >= maxDungeons) {
+                    String oldest = undoUtil.getOldestDungeonName();
+                    if (oldest != null) {
+                        Logger.info("Лимит данжей (" + maxDungeons + ") достигнут, удаляю самый старый: " + oldest);
+                        undoUtil.performUndo(oldest, result -> {
+                            proceedSpawn(loc, world, regionName, minPoint, radiusX, radiusZ, minY, maxY, freeId, finalSelected);
                         });
+                        return;
                     }
-                }.runTask(configManager.getPlugin());
+                }
+
+                proceedSpawn(loc, world, regionName, minPoint, radiusX, radiusZ, minY, maxY, freeId, finalSelected);
             }
         }.runTaskAsynchronously(configManager.getPlugin());
+    }
+
+    private void proceedSpawn(Location loc, World world, String regionName, BlockVector3 minPoint,
+                               int radiusX, int radiusZ, int minY, int maxY, int freeId, DangData selected) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                schemAction.createBackup(loc, regionName, (success) -> {
+                    if (!success) {
+                        Logger.error("Спавн данжа отменен: не удалось создать бэкап ландшафта.");
+                        return;
+                    }
+                    undoUtil.saveDungeonData(regionName, world, minPoint);
+                    schemAction.spawnSchem(loc, selected.getFileName(), () -> {
+                        schemAction.clearVegetation(loc);
+                        addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
+                        buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
+
+                        List<String> broadcastLines = configManager.getMessages().getStringList("messages.spawn.broadcast");
+                        for (String line : broadcastLines) {
+                            String formatted = line
+                                    .replace("{x}", String.valueOf(loc.getBlockX()))
+                                    .replace("{y}", String.valueOf(loc.getBlockY()))
+                                    .replace("{z}", String.valueOf(loc.getBlockZ()))
+                                    .replace("{world}", world.getName());
+                            Bukkit.broadcastMessage(MessageUtil.colorize(formatted));
+                        }
+                    });
+                });
+            }
+        }.runTask(configManager.getPlugin());
     }
 
     public String buildRegion(int x, int z, World worldBukkit, int id) {
