@@ -98,10 +98,24 @@ public class SchemAction {
 
                     boolean isFawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
 
+                    boolean clearArea = configManager.getSchem().getBoolean("clear-area-before-paste", true);
+
                     BukkitRunnable pasteTask = new BukkitRunnable() {
                         @Override
                         public void run() {
                             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(targetLoc.getWorld()))) {
+                                // Очищаем объём будущей схематики в AIR, чтобы блоки террейна
+                                // (земля/камень при спавне в земле) не замуровывали сундуки и не
+                                // оставались внутри данжа. Сама схематика вставляется поверх.
+                                if (clearArea) {
+                                    BlockVector3 pasteMin = clipboard.getMinimumPoint().add(offset);
+                                    BlockVector3 pasteMax = clipboard.getMaximumPoint().add(offset);
+                                    CuboidRegion schemRegion = new CuboidRegion(
+                                            BukkitAdapter.adapt(targetLoc.getWorld()), pasteMin, pasteMax);
+                                    editSession.setBlocks((com.sk89q.worldedit.regions.Region) schemRegion,
+                                            BlockTypes.AIR.getDefaultState());
+                                }
+
                                 ForwardExtentCopy copy = new ForwardExtentCopy(
                                         clipboard, clipboard.getRegion(), editSession, clipboard.getMinimumPoint().add(offset)
                                 );
@@ -221,7 +235,14 @@ public class SchemAction {
     }
 
     public void clearVegetation(@NotNull Location center) {
-        if (!configManager.getSchem().getBoolean("clear-vegetation", true)) return;
+        clearVegetation(center, null);
+    }
+
+    public void clearVegetation(@NotNull Location center, @Nullable Runnable onComplete) {
+        if (!configManager.getSchem().getBoolean("clear-vegetation", true)) {
+            runCallback(onComplete);
+            return;
+        }
         boolean isFawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
         CuboidRegion region = buildBackupRegion(center);
 
@@ -261,6 +282,7 @@ public class SchemAction {
             } catch (Exception e) {
                 Logger.error("Ошибка при очистке растительности: " + e.getMessage());
             }
+            runCallback(onComplete);
         };
 
         if (isFawe) {

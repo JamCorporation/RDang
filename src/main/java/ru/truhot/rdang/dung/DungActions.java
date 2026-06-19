@@ -83,9 +83,15 @@ public class DungActions {
 
                 int radiusX = configManager.getRegion().getInt("region.size.x");
                 int radiusZ = configManager.getRegion().getInt("region.size.z");
-                if (coreProtectManager != null && coreProtectManager.isAvailable() && coreProtectManager.hasPlayerBuilds(loc, radiusX, radiusZ)) {
-                    Logger.info("Данж не заспавнен: в радиусе найдены постройки игроков (" + loc.getBlockX() + ", " + loc.getBlockZ() + ").");
-                    return;
+                if (coreProtectManager != null && coreProtectManager.isAvailable()) {
+                    // Чтение блоков мира — строго в главном потоке, затем тяжёлый
+                    // lookup по БД CoreProtect выполняется здесь, в async.
+                    java.util.List<org.bukkit.block.Block> surface =
+                            callSync(() -> coreProtectManager.collectSurfaceBlocks(loc, radiusX, radiusZ));
+                    if (coreProtectManager.hasPlayerBuilds(surface)) {
+                        Logger.info("Данж не заспавнен: в радиусе найдены постройки игроков (" + loc.getBlockX() + ", " + loc.getBlockZ() + ").");
+                        return;
+                    }
                 }
 
                 String nameFormat = configManager.getRegion().getString("region.name_format");
@@ -136,6 +142,36 @@ public class DungActions {
         }.runTaskAsynchronously(configManager.getPlugin());
     }
 
+    /**
+     * Выполняет задачу в главном потоке и дожидается результата. Если уже в главном
+     * потоке — выполняет напрямую. Используется, чтобы безопасно читать мир из
+     * асинхронного кода спавна.
+     */
+    private <T> T callSync(java.util.concurrent.Callable<T> callable) {
+        if (Bukkit.isPrimaryThread()) {
+            try {
+                return callable.call();
+            } catch (Exception e) {
+                Logger.error("Ошибка callSync: " + e.getMessage());
+                return null;
+            }
+        }
+        java.util.concurrent.CompletableFuture<T> future = new java.util.concurrent.CompletableFuture<>();
+        Bukkit.getScheduler().runTask(configManager.getPlugin(), () -> {
+            try {
+                future.complete(callable.call());
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        try {
+            return future.get();
+        } catch (Exception e) {
+            Logger.error("Ошибка ожидания callSync: " + e.getMessage());
+            return null;
+        }
+    }
+
     private void proceedSpawn(Location loc, World world, String regionName, BlockVector3 minPoint,
                                int radiusX, int radiusZ, int minY, int maxY, int freeId, DangData selected) {
         new BukkitRunnable() {
@@ -147,20 +183,24 @@ public class DungActions {
                         return;
                     }
                     undoUtil.saveDungeonData(regionName, world, minPoint);
-                    schemAction.spawnSchem(loc, selected.getFileName(), () -> {
-                        schemAction.clearVegetation(loc);
-                        addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
-                        buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
+                    // Сначала убираем природную растительность (деревья/листву/траву) вокруг,
+                    // и только потом вставляем схематику. Так очистка не может удалить
+                    // деревянные/лиственные стены и крышу самого данжа.
+                    schemAction.clearVegetation(loc, () -> {
+                        schemAction.spawnSchem(loc, selected.getFileName(), () -> {
+                            addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
+                            buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
 
-                        List<String> broadcastLines = configManager.getMessages().getStringList("messages.spawn.broadcast");
-                        for (String line : broadcastLines) {
-                            String formatted = line
-                                    .replace("{x}", String.valueOf(loc.getBlockX()))
-                                    .replace("{y}", String.valueOf(loc.getBlockY()))
-                                    .replace("{z}", String.valueOf(loc.getBlockZ()))
-                                    .replace("{world}", world.getName());
-                            Bukkit.broadcastMessage(MessageUtil.colorize(formatted));
-                        }
+                            List<String> broadcastLines = configManager.getMessages().getStringList("messages.spawn.broadcast");
+                            for (String line : broadcastLines) {
+                                String formatted = line
+                                        .replace("{x}", String.valueOf(loc.getBlockX()))
+                                        .replace("{y}", String.valueOf(loc.getBlockY()))
+                                        .replace("{z}", String.valueOf(loc.getBlockZ()))
+                                        .replace("{world}", world.getName());
+                                Bukkit.broadcastMessage(MessageUtil.colorize(formatted));
+                            }
+                        });
                     });
                 });
             }

@@ -37,6 +37,39 @@ public class SpawnManager {
         return null;
     }
 
+    /**
+     * Тот же подбор точки, но размазанный по тикам: одна попытка за тик. Доступ к миру
+     * остаётся в главном потоке (так и должно быть), но больше не нагружает один тик
+     * десятками тысяч обращений к блокам. Результат отдаётся в callback (loc или null).
+     */
+    public void findDungLocationSpread(World world, Random random, java.util.function.Consumer<Location> callback) {
+        if (configManager == null || configManager.getPlugin() == null) {
+            callback.accept(findDungLocation(world, random));
+            return;
+        }
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int attempt = 0;
+            @Override
+            public void run() {
+                if (attempt >= 100) {
+                    cancel();
+                    callback.accept(null);
+                    return;
+                }
+                attempt++;
+                int x = random.nextInt(maxX - minX + 1) + minX;
+                int z = random.nextInt(maxZ - minZ + 1) + minZ;
+                int y = getSuitableHeight(world, x, z, random);
+                if (y == Integer.MIN_VALUE) return;
+                Location loc = new Location(world, x, y, z);
+                if (isLocationSafe(loc) && hasSuitableBiome(loc)) {
+                    cancel();
+                    callback.accept(loc);
+                }
+            }
+        }.runTaskTimer(configManager.getPlugin(), 1L, 1L);
+    }
+
     public Location findNearPlayerLocation(Player player, Random random) {
         World world = player.getWorld();
         int centerX = player.getLocation().getBlockX();

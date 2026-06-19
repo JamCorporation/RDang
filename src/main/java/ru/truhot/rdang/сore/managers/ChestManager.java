@@ -8,7 +8,6 @@ import org.bukkit.block.Chest;
 import org.bukkit.block.Container;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import ru.truhot.rdang.storage.Storage;
 
 import java.util.UUID;
@@ -66,13 +65,9 @@ public class ChestManager {
         chestSection.set("location", location);
         chestSection.set("opened", opened);
         locationToId.put(location, id);
-        if (plugin != null) {
-            new BukkitRunnable() {
-                @Override public void run() { chests.save(); }
-            }.runTaskAsynchronously(plugin);
-        } else {
-            chests.save();
-        }
+        // saveAsync снимает снимок конфига на этом (главном) потоке и пишет на диск
+        // асинхронно — без блокировки тика и без гонки с config.set(...).
+        chests.saveAsync(plugin);
     }
 
     public boolean isChest(Block placedBlock) {

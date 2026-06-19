@@ -86,9 +86,7 @@ public class UndoUtil {
         section.set("y", minPoint.getY());
         section.set("z", minPoint.getZ());
         section.set("spawnedAt", System.currentTimeMillis());
-        new BukkitRunnable() {
-            @Override public void run() { blockStorage.save(); }
-        }.runTaskAsynchronously(plugin);
+        blockStorage.saveAsync(plugin);
     }
 
     public int getActiveDungeonCount() {
@@ -170,10 +168,10 @@ public class UndoUtil {
                                     }
 
                                     blockStorage.getConfig().set(path, null);
-                                    blockStorage.save();
-                                    
+                                    blockStorage.saveAsync(plugin);
+
                                     if (removedCount > 0) {
-                                        shulkers.save();
+                                        shulkers.saveAsync(plugin);
                                     }
 
                                     final int finalRemovedCount = removedCount;

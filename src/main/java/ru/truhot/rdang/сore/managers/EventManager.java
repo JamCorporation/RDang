@@ -90,7 +90,7 @@ public class EventManager implements Listener {
         spawnEffect(loc, "open");
         playEffectSound(loc, "open");
         chest.set("opened", true);
-        Bukkit.getScheduler().runTaskAsynchronously(configManager.getPlugin(), () -> this.shulkers.save());
+        this.shulkers.saveAsync(configManager.getPlugin());
         if (this.configManager.isNeedKey()) {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 this.configManager.getMessageManager().getOpenDungMessages(event.getPlayer().getName()).forEach(p::sendMessage);

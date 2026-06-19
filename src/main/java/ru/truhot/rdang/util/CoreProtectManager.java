@@ -32,13 +32,15 @@ public class CoreProtectManager {
     }
 
     /**
-     * Проверяет, есть ли в радиусе постройки игроков.
+     * Собирает блоки поверхности для проверки. ОБЯЗАТЕЛЬНО вызывать в главном потоке —
+     * здесь идёт доступ к миру (getHighestBlockYAt/getBlockAt/getType).
      * Сканирует поверхность с шагом для оптимизации.
      */
-    public boolean hasPlayerBuilds(Location center, int radiusX, int radiusZ) {
-        if (api == null) return false;
+    public java.util.List<Block> collectSurfaceBlocks(Location center, int radiusX, int radiusZ) {
+        java.util.List<Block> blocks = new java.util.ArrayList<>();
+        if (api == null) return blocks;
         World world = center.getWorld();
-        if (world == null) return false;
+        if (world == null) return blocks;
 
         int centerX = center.getBlockX();
         int centerZ = center.getBlockZ();
@@ -52,12 +54,25 @@ public class CoreProtectManager {
                 int y = world.getHighestBlockYAt(x, z);
                 Block block = world.getBlockAt(x, y, z);
                 if (block.getType().isAir()) continue;
-                if (isPlayerPlaced(block)) {
-                    return true;
-                }
+                blocks.add(block);
                 checks++;
             }
             if (checks >= maxChecks) break;
+        }
+        return blocks;
+    }
+
+    /**
+     * Проверяет, есть ли среди собранных блоков постройки игроков.
+     * Безопасно вызывать асинхронно — здесь только обращения к БД CoreProtect
+     * (api.blockLookup), без доступа к живому миру.
+     */
+    public boolean hasPlayerBuilds(java.util.List<Block> blocks) {
+        if (api == null || blocks == null) return false;
+        for (Block block : blocks) {
+            if (isPlayerPlaced(block)) {
+                return true;
+            }
         }
         return false;
     }

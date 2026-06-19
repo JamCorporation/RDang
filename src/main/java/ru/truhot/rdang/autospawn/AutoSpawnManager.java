@@ -97,12 +97,15 @@ public class AutoSpawnManager {
             }
             if (configManager.getDangManager().getWorldDangs(worldName).isEmpty()) continue;
 
-            Location loc = configManager.getSpawnManager().findDungLocation(world, random);
-            if (loc != null) {
-                dungActions.spawn(loc);
-            } else {
-                Logger.warn("Авто-спавн: не удалось найти точку спавна в мире " + worldName);
-            }
+            final String fWorldName = worldName;
+            // Подбор точки размазан по тикам, чтобы не нагружать один тик сканированием мира.
+            configManager.getSpawnManager().findDungLocationSpread(world, random, loc -> {
+                if (loc != null) {
+                    dungActions.spawn(loc);
+                } else {
+                    Logger.warn("Авто-спавн: не удалось найти точку спавна в мире " + fWorldName);
+                }
+            });
         }
     }
 
