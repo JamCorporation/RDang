@@ -4,6 +4,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
+import org.bukkit.WorldBorder;
 import org.bukkit.block.Biome;
 import org.bukkit.entity.Player;
 import org.bukkit.configuration.ConfigurationSection;
@@ -23,10 +24,30 @@ public class SpawnManager {
         maxZ = section.getInt("maxz", 2000);
     }
 
+    private int[] getBorderClampedRange(World world) {
+        WorldBorder border = world.getWorldBorder();
+        double cx = border.getCenter().getX();
+        double cz = border.getCenter().getZ();
+        double half = border.getSize() / 2.0;
+        int bMinX = (int) Math.ceil(cx - half);
+        int bMaxX = (int) Math.floor(cx + half);
+        int bMinZ = (int) Math.ceil(cz - half);
+        int bMaxZ = (int) Math.floor(cz + half);
+        return new int[]{
+            Math.max(minX, bMinX),
+            Math.min(maxX, bMaxX),
+            Math.max(minZ, bMinZ),
+            Math.min(maxZ, bMaxZ)
+        };
+    }
+
     public Location findDungLocation(World world, Random random) {
+        int[] range = getBorderClampedRange(world);
+        int rMinX = range[0], rMaxX = range[1], rMinZ = range[2], rMaxZ = range[3];
+        if (rMinX >= rMaxX || rMinZ >= rMaxZ) return null;
         for (int attempt = 0; attempt < 100; attempt++) {
-            int x = random.nextInt(maxX - minX + 1) + minX;
-            int z = random.nextInt(maxZ - minZ + 1) + minZ;
+            int x = random.nextInt(rMaxX - rMinX + 1) + rMinX;
+            int z = random.nextInt(rMaxZ - rMinZ + 1) + rMinZ;
             int y = getSuitableHeight(world, x, z, random);
             if (y == Integer.MIN_VALUE) continue;
             Location loc = new Location(world, x, y, z);
@@ -47,6 +68,12 @@ public class SpawnManager {
             callback.accept(findDungLocation(world, random));
             return;
         }
+        int[] range = getBorderClampedRange(world);
+        int rMinX = range[0], rMaxX = range[1], rMinZ = range[2], rMaxZ = range[3];
+        if (rMinX >= rMaxX || rMinZ >= rMaxZ) {
+            callback.accept(null);
+            return;
+        }
         new org.bukkit.scheduler.BukkitRunnable() {
             int attempt = 0;
             @Override
@@ -57,8 +84,8 @@ public class SpawnManager {
                     return;
                 }
                 attempt++;
-                int x = random.nextInt(maxX - minX + 1) + minX;
-                int z = random.nextInt(maxZ - minZ + 1) + minZ;
+                int x = random.nextInt(rMaxX - rMinX + 1) + rMinX;
+                int z = random.nextInt(rMaxZ - rMinZ + 1) + rMinZ;
                 int y = getSuitableHeight(world, x, z, random);
                 if (y == Integer.MIN_VALUE) return;
                 Location loc = new Location(world, x, y, z);
@@ -72,6 +99,14 @@ public class SpawnManager {
 
     public Location findNearPlayerLocation(Player player, Random random) {
         World world = player.getWorld();
+        WorldBorder border = world.getWorldBorder();
+        double cx = border.getCenter().getX();
+        double cz = border.getCenter().getZ();
+        double half = border.getSize() / 2.0;
+        int bMinX = (int) Math.ceil(cx - half);
+        int bMaxX = (int) Math.floor(cx + half);
+        int bMinZ = (int) Math.ceil(cz - half);
+        int bMaxZ = (int) Math.floor(cz + half);
         int centerX = player.getLocation().getBlockX();
         int centerZ = player.getLocation().getBlockZ();
         int minR = 30, maxR = 150;
@@ -80,6 +115,7 @@ public class SpawnManager {
             int distance = minR + random.nextInt(maxR - minR + 1);
             int x = centerX + (int) (Math.cos(Math.toRadians(angle)) * distance);
             int z = centerZ + (int) (Math.sin(Math.toRadians(angle)) * distance);
+            if (x < bMinX || x > bMaxX || z < bMinZ || z > bMaxZ) continue;
             int y = getSuitableHeight(world, x, z, random);
             if (y == Integer.MIN_VALUE) continue;
             Location loc = new Location(world, x, y, z);
