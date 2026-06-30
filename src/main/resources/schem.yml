@@ -31,3 +31,19 @@ custom-worlds:
     min: 70
     max: 256
     use-default-algorithm: true
+
+# Настройки для конкретных схем (перекрывают глобальные значения выше)
+# Ключ — имя файла схемы с расширением (например dungeon1.schem)
+schematics:
+  # Пример схемы без явных стен (стены = рельеф вокруг):
+  # dungeon_cave.schem:
+  #   ignore-air-blocks: false       # Вставлять AIR из схемы, чтобы расчистить комнаты
+  #   clear-area-before-paste: false # Не чистить весь объём — рельефные стены сохранятся
+  #   clear-vegetation: true         # Растительность всё равно убираем
+  #
+  # Пример схемы, которую нужно вставить без смещения по Y:
+  # dungeon_flat.schem:
+  #   schem-offset:
+  #     x: 0
+  #     y: 0
+  #     z: 0

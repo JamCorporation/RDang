@@ -186,8 +186,11 @@ public class DungActions {
                     // Сначала убираем природную растительность (деревья/листву/траву) вокруг,
                     // и только потом вставляем схематику. Так очистка не может удалить
                     // деревянные/лиственные стены и крышу самого данжа.
-                    schemAction.clearVegetation(loc, () -> {
-                        schemAction.spawnSchem(loc, selected.getFileName(), () -> {
+                    schemAction.clearVegetation(loc, selected.getFileName(), () -> {
+                        schemAction.spawnSchem(loc, selected.getFileName(), (bounds) -> {
+                            if (bounds != null) {
+                                undoUtil.savePasteBounds(regionName, bounds[0], bounds[1]);
+                            }
                             addChests.addChests(loc, radiusX, radiusZ, minY, maxY);
                             buildRegion(loc.getBlockX(), loc.getBlockZ(), world, freeId);
 

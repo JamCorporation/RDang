@@ -8,6 +8,8 @@ import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
 import com.sk89q.worldedit.function.operation.ForwardExtentCopy;
+import com.sk89q.worldedit.regions.CuboidRegion;
+import com.sk89q.worldedit.world.block.BlockTypes;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldguard.WorldGuard;
@@ -89,6 +91,19 @@ public class UndoUtil {
         blockStorage.saveAsync(plugin);
     }
 
+    public void savePasteBounds(String regionName, BlockVector3 pasteMin, BlockVector3 pasteMax) {
+        String path = "history." + regionName;
+        ConfigurationSection section = blockStorage.getConfig().getConfigurationSection(path);
+        if (section == null) return;
+        section.set("pasteMinX", pasteMin.getX());
+        section.set("pasteMinY", pasteMin.getY());
+        section.set("pasteMinZ", pasteMin.getZ());
+        section.set("pasteMaxX", pasteMax.getX());
+        section.set("pasteMaxY", pasteMax.getY());
+        section.set("pasteMaxZ", pasteMax.getZ());
+        blockStorage.saveAsync(plugin);
+    }
+
     public int getActiveDungeonCount() {
         ConfigurationSection history = blockStorage.getConfig().getConfigurationSection("history");
         if (history == null) return 0;
@@ -139,6 +154,14 @@ public class UndoUtil {
                 }
 
                 BlockVector3 minPoint = BlockVector3.at(data.getInt("x"), data.getInt("y"), data.getInt("z"));
+                BlockVector3 pasteMin = null;
+                BlockVector3 pasteMax = null;
+                if (data.contains("pasteMinX")) {
+                    pasteMin = BlockVector3.at(data.getInt("pasteMinX"), data.getInt("pasteMinY"), data.getInt("pasteMinZ"));
+                    pasteMax = BlockVector3.at(data.getInt("pasteMaxX"), data.getInt("pasteMaxY"), data.getInt("pasteMaxZ"));
+                }
+                final BlockVector3 finalPasteMin = pasteMin;
+                final BlockVector3 finalPasteMax = pasteMax;
 
                 new BukkitRunnable() {
                     @Override
@@ -155,7 +178,7 @@ public class UndoUtil {
                         final ProtectedRegion finalRegion = region;
                         final RegionManager finalManager = manager;
 
-                        restoreLandscape(regionName, world, minPoint, () -> {
+                        restoreLandscape(regionName, world, minPoint, finalPasteMin, finalPasteMax, () -> {
                             new BukkitRunnable() {
                                 @Override
                                 public void run() {
@@ -185,7 +208,8 @@ public class UndoUtil {
         }.runTaskAsynchronously(plugin);
     }
 
-    private void restoreLandscape(String regionName, World world, BlockVector3 minPoint, Runnable onComplete) {
+    private void restoreLandscape(String regionName, World world, BlockVector3 minPoint,
+                                    BlockVector3 pasteMin, BlockVector3 pasteMax, Runnable onComplete) {
         File backupFile = schemAction.backupFile(regionName);
         if (!backupFile.exists()) {
             Logger.warn("Бэкап не найден для данжа: " + regionName + ". Пропускаем восстановление блоков.");
@@ -213,6 +237,10 @@ public class UndoUtil {
                         @Override
                         public void run() {
                             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
+                                if (pasteMin != null && pasteMax != null) {
+                                    CuboidRegion dungeonArea = new CuboidRegion(BukkitAdapter.adapt(world), pasteMin, pasteMax);
+                                    editSession.setBlocks(dungeonArea, BlockTypes.AIR.getDefaultState());
+                                }
                                 ForwardExtentCopy copy = new ForwardExtentCopy(
                                         clipboard, clipboard.getRegion(), editSession, clipboard.getMinimumPoint().add(offset)
                                 );

@@ -71,8 +71,8 @@ public class SchemCommand implements CommandExecutor {
 
             int rx = configManager.getRegion().getInt("region.size.x", 12);
             int rz = configManager.getRegion().getInt("region.size.z", 12);
-            int minY = configManager.getRegion().getInt("region.height.min", -10);
-            int maxY = configManager.getRegion().getInt("region.height.max", 10);
+            int minY = configManager.getRegion().getInt("region.height.min", 0);
+            int maxY = configManager.getRegion().getInt("region.height.max", 255);
 
             dungActions.getSchemAction().createBackup(spawnLocation, regionName, (success) -> {
                 if (!success) {
@@ -81,7 +81,10 @@ public class SchemCommand implements CommandExecutor {
                 }
                 undoUtil.saveDungeonData(regionName, spawnLocation.getWorld(),
                         BlockVector3.at(spawnLocation.getBlockX() - rx, minY, spawnLocation.getBlockZ() - rz));
-                dungActions.getSchemAction().spawnSchem(spawnLocation, fileNameOnly, () -> {
+                dungActions.getSchemAction().spawnSchem(spawnLocation, fileNameOnly, (bounds) -> {
+                    if (bounds != null) {
+                        undoUtil.savePasteBounds(regionName, bounds[0], bounds[1]);
+                    }
                     dungActions.getAddChests().addChests(spawnLocation, rx, rz, minY, maxY);
                     dungActions.buildRegion(spawnLocation.getBlockX(), spawnLocation.getBlockZ(), spawnLocation.getWorld(), freeId);
                 });

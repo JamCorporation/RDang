@@ -43,10 +43,14 @@ public class SchemAction {
     }
 
     public void spawnSchem(@NotNull Location location, @NotNull String fileName) {
-        spawnSchem(location, fileName, null);
+        spawnSchem(location, fileName, (java.util.function.Consumer<BlockVector3[]>) null);
     }
 
     public void spawnSchem(@NotNull Location location, @NotNull String fileName, @Nullable Runnable onComplete) {
+        spawnSchem(location, fileName, onComplete == null ? null : (java.util.function.Consumer<BlockVector3[]>) bounds -> onComplete.run());
+    }
+
+    public void spawnSchem(@NotNull Location location, @NotNull String fileName, @Nullable java.util.function.Consumer<BlockVector3[]> onComplete) {
         File schemFile = new File(plugin.getDataFolder() + "/schem/" + fileName);
         if (!schemFile.exists()) {
             org.bukkit.plugin.Plugin fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
@@ -70,14 +74,14 @@ public class SchemAction {
         }
         if (!schemFile.exists()) {
             Logger.error("[Schem] Файл не найден: " + fileName);
-            if (onComplete != null) onComplete.run();
+            if (onComplete != null) onComplete.accept(null);
             return;
         }
         final File finalFile = schemFile;
         ClipboardFormat format = ClipboardFormats.findByFile(finalFile);
         if (format == null) {
             Logger.error("[Schem] Формат не распознан для: " + finalFile.getAbsolutePath());
-            if (onComplete != null) onComplete.run();
+            if (onComplete != null) onComplete.accept(null);
             return;
         }
 
@@ -87,31 +91,57 @@ public class SchemAction {
                 try (FileInputStream fis = new FileInputStream(finalFile);
                      ClipboardReader reader = format.getReader(fis)) {
                     Clipboard clipboard = reader.read();
-                    boolean ignoreAir = configManager.getSchem().getBoolean("ignore-air-blocks");
-                    ConfigurationSection offsetSection = configManager.getSchem().getConfigurationSection("schem-offset");
+                    boolean ignoreAir = getSchemBoolean(fileName, "ignore-air-blocks", true);
+                    ConfigurationSection offsetSection = getSchemOffsetSection(fileName);
                     double ox = offsetSection != null ? offsetSection.getDouble("x") : 0;
                     double oy = offsetSection != null ? offsetSection.getDouble("y") : 0;
                     double oz = offsetSection != null ? offsetSection.getDouble("z") : 0;
-                    Location targetLoc = location.clone().add(ox, oy, oz);
+                    // Ищем самый нижний не-воздушный Y в схемате, чтобы убрать воздушный зазор снизу.
+                    // Если нижние слои клипборда — сплошной воздух, данж будет висеть в воздухе
+                    // ровно на их количество. Компенсируем сдвигом targetLoc вниз.
+                    int clipMinY = clipboard.getMinimumPoint().getY();
+                    int clipMaxY = clipboard.getMaximumPoint().getY();
+                    int clipMinX = clipboard.getMinimumPoint().getX();
+                    int clipMaxX = clipboard.getMaximumPoint().getX();
+                    int clipMinZ = clipboard.getMinimumPoint().getZ();
+                    int clipMaxZ = clipboard.getMaximumPoint().getZ();
+                    int lowestNonAirY = Integer.MAX_VALUE;
+                    ySearch:
+                    for (int scanY = clipMinY; scanY <= clipMaxY; scanY++) {
+                        for (int scanX = clipMinX; scanX <= clipMaxX; scanX++) {
+                            for (int scanZ = clipMinZ; scanZ <= clipMaxZ; scanZ++) {
+                                BlockType bt = clipboard.getBlock(BlockVector3.at(scanX, scanY, scanZ)).getBlockType();
+                                if (bt != null && !bt.getMaterial().isAir()) {
+                                    lowestNonAirY = scanY;
+                                    break ySearch;
+                                }
+                            }
+                        }
+                    }
+                    int yShift = (lowestNonAirY != Integer.MAX_VALUE)
+                            ? (lowestNonAirY - clipboard.getOrigin().getY()) : 0;
+                    Location targetLoc = location.clone().add(ox, oy - yShift, oz);
                     BlockVector3 targetOrigin = BlockVector3.at(targetLoc.getX(), targetLoc.getY(), targetLoc.getZ());
                     BlockVector3 offset = targetOrigin.subtract(clipboard.getOrigin());
 
                     boolean isFawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
 
-                    boolean clearArea = configManager.getSchem().getBoolean("clear-area-before-paste", true);
+                    boolean clearArea = getSchemBoolean(fileName, "clear-area-before-paste", true);
 
                     BukkitRunnable pasteTask = new BukkitRunnable() {
                         @Override
                         public void run() {
+                            final BlockVector3 pasteMin = clipboard.getMinimumPoint().add(offset);
+                            final BlockVector3 pasteMax = clipboard.getMaximumPoint().add(offset);
                             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(targetLoc.getWorld()))) {
                                 // Очищаем объём будущей схематики в AIR, чтобы блоки террейна
                                 // (земля/камень при спавне в земле) не замуровывали сундуки и не
                                 // оставались внутри данжа. Сама схематика вставляется поверх.
                                 if (clearArea) {
-                                    BlockVector3 pasteMin = clipboard.getMinimumPoint().add(offset);
-                                    BlockVector3 pasteMax = clipboard.getMaximumPoint().add(offset);
+                                    int clearBottomY = Math.min(pasteMin.getY(), location.getBlockY());
+                                    BlockVector3 clearBottom = BlockVector3.at(pasteMin.getX(), clearBottomY, pasteMin.getZ());
                                     CuboidRegion schemRegion = new CuboidRegion(
-                                            BukkitAdapter.adapt(targetLoc.getWorld()), pasteMin, pasteMax);
+                                            BukkitAdapter.adapt(targetLoc.getWorld()), clearBottom, pasteMax);
                                     editSession.setBlocks((com.sk89q.worldedit.regions.Region) schemRegion,
                                             BlockTypes.AIR.getDefaultState());
                                 }
@@ -136,7 +166,7 @@ public class SchemAction {
                                 new BukkitRunnable() {
                                     @Override
                                     public void run() {
-                                        onComplete.run();
+                                        onComplete.accept(new BlockVector3[]{pasteMin, pasteMax});
                                     }
                                 }.runTask(plugin);
                             }
@@ -156,7 +186,7 @@ public class SchemAction {
                         new BukkitRunnable() {
                             @Override
                             public void run() {
-                                onComplete.run();
+                                onComplete.accept(null);
                             }
                         }.runTask(plugin);
                     }
@@ -234,12 +264,36 @@ public class SchemAction {
         return new CuboidRegion(BukkitAdapter.adapt(location.getWorld()), min, max);
     }
 
+    private boolean getSchemBoolean(@Nullable String fileName, String key, boolean defaultValue) {
+        if (fileName != null) {
+            ConfigurationSection perSchem = configManager.getSchem().getConfigurationSection("schematics." + fileName);
+            if (perSchem != null && perSchem.contains(key)) {
+                return perSchem.getBoolean(key);
+            }
+        }
+        return configManager.getSchem().getBoolean(key, defaultValue);
+    }
+
+    private ConfigurationSection getSchemOffsetSection(@Nullable String fileName) {
+        if (fileName != null) {
+            ConfigurationSection perSchem = configManager.getSchem().getConfigurationSection("schematics." + fileName);
+            if (perSchem != null && perSchem.contains("schem-offset")) {
+                return perSchem.getConfigurationSection("schem-offset");
+            }
+        }
+        return configManager.getSchem().getConfigurationSection("schem-offset");
+    }
+
     public void clearVegetation(@NotNull Location center) {
-        clearVegetation(center, null);
+        clearVegetation(center, null, null);
     }
 
     public void clearVegetation(@NotNull Location center, @Nullable Runnable onComplete) {
-        if (!configManager.getSchem().getBoolean("clear-vegetation", true)) {
+        clearVegetation(center, null, onComplete);
+    }
+
+    public void clearVegetation(@NotNull Location center, @Nullable String fileName, @Nullable Runnable onComplete) {
+        if (!getSchemBoolean(fileName, "clear-vegetation", true)) {
             runCallback(onComplete);
             return;
         }
