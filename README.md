@@ -33,7 +33,7 @@
 
 ## Установка
 
-1. Скачайте последний релиз с [GitHub Releases](https://github.com/Truhott/RDang/releases)
+1. Скачайте последний релиз с [GitHub Releases](https://github.com/JamCorporation/RDang/releases)
 2. Поместите `.jar` в папку `plugins/`
 3. Убедитесь, что установлены **WorldEdit** и **WorldGuard**
 4. Запустите сервер — плагин создаст папку `plugins/RDang/`
