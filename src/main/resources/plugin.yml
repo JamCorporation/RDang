@@ -32,6 +32,7 @@ permissions:
       rdang.migrate: true
       rdang.give.key: true
       rdang.give.compass: true
+      rdang.autospawn: true
   rdang.use:
     default: op
   rdang.additem:
@@ -57,4 +58,6 @@ permissions:
   rdang.give.key:
     default: op
   rdang.give.compass:
+    default: op
+  rdang.autospawn:
     default: op
